@@ -114,6 +114,6 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Kotoba Sol Diccionario ejecutándose en http://localhost:${PORT}`);
+  console.log(`Murasaki no Jisho ejecutándose en http://localhost:${PORT}`);
   console.log(`Listo para Google Cloud Run en puerto ${PORT}`);
 });

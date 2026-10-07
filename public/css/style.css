@@ -1,10 +1,10 @@
 :root {
   --surface: #FAF7F2;
   --surface-card: #FFFFFF;
-  --primary: #E03E2D;
-  --primary-hover: #C43223;
-  --primary-light: #FDF2F0;
-  --primary-border: #F9D6D2;
+  --primary: #794391;
+  --primary-hover: #5E2E73;
+  --primary-light: #F6EEFA;
+  --primary-border: #E3D0F0;
   --secondary: #1E3A5F;
   --secondary-light: #EDF2F7;
   --text-main: #1A1A1E;
@@ -480,127 +480,80 @@ body {
   margin-bottom: 0.5rem;
 }
 
-/* Study / Flashcard Mode */
-.study-section {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
+/* Recent Searches / Consultations Bar */
+.recent-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
   border-radius: var(--radius-md);
-  padding: 2rem 1rem;
-  margin-bottom: 2rem;
-  box-shadow: var(--shadow-subtle);
+  font-size: 0.825rem;
 }
 
-.study-card-wrapper {
-  max-width: 480px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.study-card-counter {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 1rem;
-}
-
-.study-card {
-  perspective: 1000px;
-  height: 280px;
-  margin-bottom: 1.5rem;
-  cursor: pointer;
-}
-
-.flashcard-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  text-align: center;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-style: preserve-3d;
-  box-shadow: var(--shadow-hover);
-  border-radius: var(--radius-lg);
-}
-
-.study-card.is-flipped .flashcard-inner {
-  transform: rotateY(180deg);
-}
-
-.flashcard-front, .flashcard-back {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.recent-label {
+  display: inline-flex;
   align-items: center;
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-}
-
-.flashcard-front {
-  background-color: #FFFFFF;
-}
-
-.flashcard-back {
-  background-color: var(--primary-light);
-  border-color: var(--primary-border);
-  transform: rotateY(180deg);
-}
-
-.study-kanji {
-  font-size: 3.75rem;
-  font-family: var(--font-serif);
-  font-weight: 700;
-  color: var(--text-main);
-  margin: 0.5rem 0;
-}
-
-.study-reading {
-  font-size: 1.25rem;
+  gap: 0.35rem;
+  font-weight: 600;
   color: var(--primary);
-  font-weight: 600;
+  white-space: nowrap;
 }
 
-.study-hint {
-  font-size: 0.775rem;
-  color: var(--text-secondary);
-  margin-top: 1rem;
+.recent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
 }
 
-.study-meaning {
-  font-size: 1.65rem;
-  font-weight: 700;
-  color: var(--text-main);
-  margin-bottom: 1rem;
-}
-
-.study-example {
-  background: #FFFFFF;
+.recent-chip {
+  background: var(--surface-card);
+  border: 1px solid var(--primary-border);
   border-radius: var(--radius-sm);
-  padding: 0.75rem 1rem;
-  border-left: 3px solid var(--primary);
-  font-size: 0.85rem;
-}
-
-.study-example-jp {
-  display: block;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.825rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  color: var(--text-main);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+  user-select: none;
 }
 
-.study-example-es {
-  display: block;
+.recent-chip:hover {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+}
+
+.recent-chip-reading {
+  font-size: 0.725rem;
+  font-weight: normal;
   color: var(--text-muted);
 }
 
-.study-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.75rem;
+.recent-chip:hover .recent-chip-reading {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.recent-clear-btn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.2rem 0.4rem;
+}
+
+.recent-clear-btn:hover {
+  color: var(--primary);
 }
 
 /* Modal Overlay */

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kotoba Sol | Diccionario Japonés - Español</title>
+  <title>Murasaki no Jisho | Diccionario Japonés - Español</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans:wght@400;500;600;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
@@ -15,18 +15,14 @@
   <header class="app-header">
     <div class="header-inner container">
       <div class="logo-cluster">
-        <span class="logo-seal">言</span>
+        <span class="logo-seal">紫</span>
         <div class="logo-text">
-          <h1 class="logo-title">Kotoba Sol</h1>
-          <span class="logo-subtitle">Diccionario Japonés — Español</span>
+          <h1 class="logo-title">Murasaki no Jisho</h1>
+          <span class="logo-subtitle">紫の辞書 — Diccionario Japonés-Español</span>
         </div>
       </div>
       <div class="header-actions">
-        <button id="toggleStudyModeBtn" class="btn btn-outline" title="Modo Fichas de Estudio">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>
-          <span class="hide-mobile">Modo Fichas</span>
-        </button>
-        <span class="badge badge-cloud" title="Listo para despliegue en Google Cloud">
+        <span class="badge badge-cloud" title="Desplegado en Google Cloud">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
           Cloud Run
         </span>
@@ -52,6 +48,18 @@
         <button id="clearSearchBtn" class="clear-btn" style="display: none;" title="Limpiar búsqueda">✕</button>
       </div>
 
+      <!-- Recent Words Bar (Shown when search is empty) -->
+      <div id="recentContainer" class="recent-bar" style="display: none;">
+        <span class="recent-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Últimas consultadas:
+        </span>
+        <div class="recent-chips" id="recentChips">
+          <!-- Injected via JS -->
+        </div>
+        <button id="clearRecentBtn" class="recent-clear-btn" title="Borrar historial">Borrar</button>
+      </div>
+
       <!-- Category Filter Pills -->
       <div class="filter-pills" id="filterPills">
         <button class="pill active" data-category="all">
@@ -69,43 +77,9 @@
       </div>
     </section>
 
-    <!-- Study / Flashcard Mode Container (Hidden by default) -->
-    <section id="studyModeContainer" class="study-section" style="display: none;">
-      <div class="study-card-wrapper">
-        <div class="study-card-counter">
-          <span id="studyIndex">1</span> de <span id="studyTotal">30</span>
-        </div>
-        <div class="study-card" id="flashcard">
-          <div class="flashcard-inner">
-            <div class="flashcard-front">
-              <span class="badge" id="studyBadge">Sustantivo</span>
-              <div class="study-kanji" id="studyKanji">桜</div>
-              <div class="study-reading" id="studyReading">さくら (sakura)</div>
-              <p class="study-hint">Toca la ficha o pulsa el botón para ver la traducción</p>
-            </div>
-            <div class="flashcard-back">
-              <div class="study-meaning" id="studyMeaning">Flor de cerezo / Cerezo</div>
-              <div class="study-example" id="studyExample">
-                <span class="study-example-jp">春には桜が美しく咲きます。</span>
-                <span class="study-example-es">En primavera los cerezos florecen con gran belleza.</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="study-controls">
-          <button id="studyPrevBtn" class="btn btn-outline">← Anterior</button>
-          <button id="studyFlipBtn" class="btn btn-primary">Girar Ficha</button>
-          <button id="studyAudioBtn" class="btn btn-icon" title="Escuchar pronunciación">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-          </button>
-          <button id="studyNextBtn" class="btn btn-outline">Siguiente →</button>
-        </div>
-      </div>
-    </section>
-
     <!-- Results Status Bar -->
     <div class="results-bar">
-      <span id="resultsCount">Mostrando 30 resultados</span>
+      <span id="resultsCount">Últimos resultados: 30 palabras</span>
       <div class="jlpt-filter">
         <label for="jlptSelect">Nivel JLPT:</label>
         <select id="jlptSelect">
@@ -189,7 +163,7 @@
   <!-- Footer -->
   <footer class="app-footer">
     <div class="container footer-content">
-      <p><strong>Kotoba Sol</strong> — Diccionario interactivo Japonés-Español.</p>
+      <p><strong>Murasaki no Jisho</strong> (紫の辞書) — Diccionario interactivo Japonés-Español.</p>
       <p class="footer-sub">Diseñado con Google Stitch MCP • 30 Entradas JLPT • Listo para Google Cloud Run</p>
     </div>
   </footer>

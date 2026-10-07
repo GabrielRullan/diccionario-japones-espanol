@@ -1,11 +1,12 @@
-// Kotoba Sol - Japanese-Spanish Dictionary Client App
+// Murasaki no Jisho - Diccionario Japonés-Español
 
 let allWords = [];
 let currentFiltered = [];
 let activeCategory = 'all';
 let activeJlpt = 'all';
-let currentStudyIndex = 0;
-let isStudyMode = false;
+let recentWordIds = [];
+
+const RECENT_STORAGE_KEY = 'murasaki_recent_words';
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
@@ -15,6 +16,11 @@ const emptyState = document.getElementById('emptyState');
 const resultsCount = document.getElementById('resultsCount');
 const filterPills = document.getElementById('filterPills');
 const jlptSelect = document.getElementById('jlptSelect');
+
+// Recent Bar Elements
+const recentContainer = document.getElementById('recentContainer');
+const recentChips = document.getElementById('recentChips');
+const clearRecentBtn = document.getElementById('clearRecentBtn');
 
 // Modal Elements
 const detailModal = document.getElementById('detailModal');
@@ -32,29 +38,79 @@ const modalExampleEs = document.getElementById('modalExampleEs');
 const modalNotes = document.getElementById('modalNotes');
 const modalAudioBtn = document.getElementById('modalAudioBtn');
 
-// Study Elements
-const toggleStudyModeBtn = document.getElementById('toggleStudyModeBtn');
-const studyModeContainer = document.getElementById('studyModeContainer');
-const flashcard = document.getElementById('flashcard');
-const studyKanji = document.getElementById('studyKanji');
-const studyReading = document.getElementById('studyReading');
-const studyMeaning = document.getElementById('studyMeaning');
-const studyBadge = document.getElementById('studyBadge');
-const studyExample = document.getElementById('studyExample');
-const studyIndex = document.getElementById('studyIndex');
-const studyTotal = document.getElementById('studyTotal');
-const studyPrevBtn = document.getElementById('studyPrevBtn');
-const studyNextBtn = document.getElementById('studyNextBtn');
-const studyFlipBtn = document.getElementById('studyFlipBtn');
-const studyAudioBtn = document.getElementById('studyAudioBtn');
-
 let currentActiveWord = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+  loadRecentFromStorage();
   await loadDictionary();
   setupEventListeners();
 });
+
+// Load recent words from localStorage
+function loadRecentFromStorage() {
+  try {
+    const raw = localStorage.getItem(RECENT_STORAGE_KEY);
+    if (raw) {
+      recentWordIds = JSON.parse(raw);
+    }
+  } catch (e) {
+    recentWordIds = [];
+  }
+}
+
+function saveRecentToStorage() {
+  try {
+    localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentWordIds));
+  } catch (e) {
+    console.warn('No se pudo guardar en localStorage', e);
+  }
+}
+
+function addWordToRecent(wordId) {
+  if (!wordId) return;
+  // Move to front, max 8 items
+  recentWordIds = [wordId, ...recentWordIds.filter(id => id !== wordId)].slice(0, 8);
+  saveRecentToStorage();
+  renderRecentBar();
+}
+
+function renderRecentBar() {
+  if (!recentContainer || !recentChips) return;
+
+  const isSearchEmpty = searchInput.value.trim() === '';
+  if (!isSearchEmpty || recentWordIds.length === 0) {
+    recentContainer.style.display = 'none';
+    return;
+  }
+
+  const recentWords = recentWordIds
+    .map(id => allWords.find(w => w.id === id))
+    .filter(Boolean);
+
+  if (recentWords.length === 0) {
+    recentContainer.style.display = 'none';
+    return;
+  }
+
+  recentChips.innerHTML = recentWords.map(w => `
+    <button class="recent-chip" data-id="${w.id}">
+      <span>${w.kanji}</span>
+      <span class="recent-chip-reading">${w.hiragana}</span>
+    </button>
+  `).join('');
+
+  recentContainer.style.display = 'flex';
+
+  // Attach chip click handlers
+  recentChips.querySelectorAll('.recent-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const word = allWords.find(w => w.id === id);
+      if (word) openModal(word);
+    });
+  });
+}
 
 // Load dictionary from API
 async function loadDictionary() {
@@ -65,6 +121,7 @@ async function loadDictionary() {
     currentFiltered = [...allWords];
     renderCards(currentFiltered);
     updateCategoryCounts();
+    renderRecentBar();
   } catch (err) {
     console.error('Error al cargar datos del diccionario:', err);
     cardsGrid.innerHTML = `<div class="empty-state"><p>Error cargando los datos. Por favor recarga la página.</p></div>`;
@@ -95,7 +152,13 @@ function renderCards(words) {
 
   emptyState.style.display = 'none';
   cardsGrid.style.display = 'grid';
-  resultsCount.textContent = `Mostrando ${words.length} resultado${words.length === 1 ? '' : 's'}`;
+
+  const isSearchEmpty = searchInput.value.trim() === '';
+  if (isSearchEmpty) {
+    resultsCount.textContent = `Últimos resultados: ${words.length} palabras`;
+  } else {
+    resultsCount.textContent = `Resultados encontrados: ${words.length}`;
+  }
 
   cardsGrid.innerHTML = words.map(w => `
     <article class="dict-card" data-id="${w.id}">
@@ -133,7 +196,10 @@ function renderCards(words) {
     card.addEventListener('click', () => {
       const id = card.getAttribute('data-id');
       const word = allWords.find(w => w.id === id);
-      if (word) openModal(word);
+      if (word) {
+        addWordToRecent(word.id);
+        openModal(word);
+      }
     });
   });
 }
@@ -167,11 +233,7 @@ function applyFilters() {
   });
 
   renderCards(currentFiltered);
-
-  if (isStudyMode) {
-    currentStudyIndex = 0;
-    renderStudyCard();
-  }
+  renderRecentBar();
 }
 
 // Audio Player (Server TTS with Web Speech API fallback)
@@ -265,47 +327,6 @@ function closeModal() {
   currentActiveWord = null;
 }
 
-// Study / Flashcard Mode
-function toggleStudyMode() {
-  isStudyMode = !isStudyMode;
-  if (isStudyMode) {
-    studyModeContainer.style.display = 'block';
-    toggleStudyModeBtn.classList.add('btn-primary');
-    toggleStudyModeBtn.classList.remove('btn-outline');
-    currentStudyIndex = 0;
-    renderStudyCard();
-    studyModeContainer.scrollIntoView({ behavior: 'smooth' });
-  } else {
-    studyModeContainer.style.display = 'none';
-    toggleStudyModeBtn.classList.remove('btn-primary');
-    toggleStudyModeBtn.classList.add('btn-outline');
-  }
-}
-
-function renderStudyCard() {
-  const words = currentFiltered.length > 0 ? currentFiltered : allWords;
-  if (words.length === 0) return;
-
-  if (currentStudyIndex >= words.length) currentStudyIndex = 0;
-  if (currentStudyIndex < 0) currentStudyIndex = words.length - 1;
-
-  const word = words[currentStudyIndex];
-  flashcard.classList.remove('is-flipped');
-
-  studyIndex.textContent = currentStudyIndex + 1;
-  studyTotal.textContent = words.length;
-
-  studyKanji.textContent = word.kanji;
-  studyReading.textContent = `${word.hiragana} (${word.romaji})`;
-  studyBadge.textContent = `${word.category_es} • ${word.jlpt}`;
-  studyMeaning.textContent = word.spanish;
-
-  studyExample.innerHTML = `
-    <span class="study-example-jp">${word.example.japanese}</span>
-    <span class="study-example-es">${word.example.spanish}</span>
-  `;
-}
-
 // Event Listeners
 function setupEventListeners() {
   // Search Input
@@ -315,6 +336,15 @@ function setupEventListeners() {
     applyFilters();
     searchInput.focus();
   });
+
+  // Clear Recent History
+  if (clearRecentBtn) {
+    clearRecentBtn.addEventListener('click', () => {
+      recentWordIds = [];
+      saveRecentToStorage();
+      renderRecentBar();
+    });
+  }
 
   // Category Pills
   filterPills.querySelectorAll('.pill').forEach(pill => {
@@ -346,34 +376,6 @@ function setupEventListeners() {
   modalAudioBtn.addEventListener('click', () => {
     if (currentActiveWord) {
       playJapaneseAudio(currentActiveWord.kanji, modalAudioBtn);
-    }
-  });
-
-  // Study Mode events
-  toggleStudyModeBtn.addEventListener('click', toggleStudyMode);
-
-  flashcard.addEventListener('click', () => {
-    flashcard.classList.toggle('is-flipped');
-  });
-
-  studyFlipBtn.addEventListener('click', () => {
-    flashcard.classList.toggle('is-flipped');
-  });
-
-  studyPrevBtn.addEventListener('click', () => {
-    currentStudyIndex--;
-    renderStudyCard();
-  });
-
-  studyNextBtn.addEventListener('click', () => {
-    currentStudyIndex++;
-    renderStudyCard();
-  });
-
-  studyAudioBtn.addEventListener('click', () => {
-    const words = currentFiltered.length > 0 ? currentFiltered : allWords;
-    if (words[currentStudyIndex]) {
-      playJapaneseAudio(words[currentStudyIndex].kanji, studyAudioBtn);
     }
   });
 }
