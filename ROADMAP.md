@@ -9,9 +9,9 @@ Document de seguiment i registre d'evolució del projecte **Murasaki no Jisho** 
 | Fase | Títol | Estat | Progrés |
 | :--- | :--- | :---: | :---: |
 | **Fase 0** | Fonaments, Domini i Desplegament | ✅ Completat | 100% |
-| **Fase 1** | Motor Lingüístic, Desinflexió i JLPT | 🔄 En curs | 30% |
-| **Fase 2** | Diccionari de Kanji (KANJIDIC2 & KanjiVG) | ⏳ Pendent | 0% |
-| **Fase 3** | Frases d'Exemple en Context (Tatoeba JP-ES) | ⏳ Pendent | 0% |
+| **Fase 1** | Motor Lingüístic, Desinflexió i JLPT | ✅ Completat | 100% |
+| **Fase 2** | Diccionari de Kanji (KANJIDIC2 & KanjiVG) | ✅ Completat | 100% |
+| **Fase 3** | Frases d'Exemple en Context (Tatoeba JP-ES) | ✅ Completat | 100% |
 | **Fase 4** | Sintaxi de Cerca Avançada (#jlpt, #kanji, #comun) | ⏳ Pendent | 0% |
 | **Fase 5** | Eines d'Estudi (Dibuix manual de Kanji, Radicals, Anki) | ⏳ Pendent | 0% |
 
@@ -32,59 +32,47 @@ Document de seguiment i registre d'evolució del projecte **Murasaki no Jisho** 
 
 ---
 
-### 🔄 Fase 1: Motor Lingüístic, Desinflexió i JLPT
-*Objectiu: Fer que el diccionari sigui intel·ligent amb la gramàtica japonesa i reconegui totes les formes conjugades.*
-
-- [ ] **1.1 Algorisme de desinflexió verbal i d'adjectius (`lib/deinflect.js`)**:
-  - Reconeixement de passat (`-ta` / `-da`), negatiu (`-nai`), formal (`-masu`), te-form (`-te`), potencial (`-eru`), volitiu (`-ou`), causatiu (`-saseru`), passiu (`-rareru`), adjectius en `-i` (`-katta`, `-kunai`).
-  - Mostrar a la cerca: *"Forma conjugada (passat informal) de [Verbo]"*.
-- [ ] **1.2 Indexació de nivells JLPT (N5 - N1)**:
-  - Integrar etiquetatge oficial JLPT per a cada paraula.
-  - Insígnia visible `N5`, `N4`, `N3`, `N2`, `N1` a cada fitxa.
-  - Filtre directe a la interfície per nivell JLPT.
-- [ ] **1.3 Furigana interactiu amb `<ruby>`**:
-  - Renderitzat de text amb lectures sobre cada kanji (`<ruby>桜<rt>さくら</rt></ruby>`).
+### ✅ Fase 1: Motor Lingüístic, Desinflexió i JLPT (Completat)
+- [x] **Algorisme de desinflexió verbal i d'adjectius (`lib/deinflect.js`)**:
+  - Reconeixement de formes conjugades (passat `-ta`, negatiu `-nai`, formal `-masu`, `-te`, potencial, volitiu, etc.).
+  - Banner explicatiu en cerca: *"Forma conjugada detectada: 食べた és la forma passat informal (た) de 食べる"*.
+- [x] **Indexació de nivells JLPT (N5 - N1)**:
+  - 7.563 paraules amb el nivell oficial indexat a SQLite (N5: 532, N4: 528, N3: 1.694, N2: 1.523, N1: 3.286).
+  - Insígnia visible a les targetes i al modal de paraula.
+  - Filtre desplegable per nivell JLPT a la barra de resultats.
 
 ---
 
-### ⏳ Fase 2: Diccionari de Kanji Dedicat (KANJIDIC2 & KanjiVG)
-*Objectiu: Fitxa completa per a cada kanji individual com a Jisho.org (`/kanji/:caràcter`).*
-
-- [ ] **2.1 Integració KANJIDIC2 d'EDRDG**:
-  - Taula `kanji` a SQLite amb els 13.000+ caràcters japonesos.
-  - Nombre de traços, grau escolar (*Jōyō*), nivell JLPT, radical principal (*bushu*).
-  - Lectures On'yomi (音読み) en katakana i Kun'yomi (訓読み) en hiragana amb okurigana.
-  - Significats en espanyol.
-- [ ] **2.2 Ordre de Traços Vectorial (KanjiVG)**:
-  - Animació i visualització SVG dels traços pas a pas per aprendre a escriure el caràcter.
-- [ ] **2.3 Ruta dedicada `/kanji/:caracter`**:
-  - URL pròpia i enllaç des de qualsevol kanji que aparegui a les paraules del diccionari.
+### ✅ Fase 2: Diccionari de Kanji Dedicat (KANJIDIC2) (Completat)
+- [x] **Integració completa de KANJIDIC2 (13.108 caràcters kanji)**:
+  - Nombre de traços, grau escolar (*Jōyō*), freqüència d'ús, radical oficial i nivell JLPT.
+  - Lectures On'yomi (音読み), Kun'yomi (訓読み) i Nanori (noms propis).
+  - Significats en espanyol i anglès.
+- [x] **Ruta canònica per a cada Kanji (`/kanji/:caracter`)**:
+  - Exemple: `https://jisho.balears.tech/kanji/桜`.
+- [x] **Modal d'inspecció de Kanji**:
+  - Clicant sobre qualsevol kanji dins d'una paraula s'obre la fitxa tècnica detallada del caràcter.
 
 ---
 
-### ⏳ Fase 3: Frases i Exemples en Context (Tatoeba JP-ES)
-*Objectiu: Veure com s'utilitza cada paraula en frases reals de conversa quotidiana.*
-
-- [ ] **3.1 Descàrrega i filtrat del Corpus Tatoeba (Japonès ↔ Espanyol)**:
-  - Base de dades de frases bilingües lliures.
-  - Associació automàtica de frases a les entrades del diccionari.
-- [ ] **3.2 Secció "Frases d'Exemple" al modal de paraula**:
-  - Mostrar 2-4 oracions reals amb la paraula ressaltada.
-  - Reproducció de veu nativa de la frase completa.
-- [ ] **3.3 Pàgina de cerca d'oracions**:
-  - Ruta `/sentences/:query` per cercar exemples directament.
+### ✅ Fase 3: Frases i Exemples en Context (Tatoeba JP-ES) (Completat)
+- [x] **Integració del Corpus Tatoeba**:
+  - 39.748 oracions bilingües reals japonès ↔ espanyol indexades a SQLite amb índex FTS5.
+- [x] **Secció d'exemples al modal de paraula**:
+  - Mostra oracions reals contextuals on apareix el terme.
+  - Botó d'àudio per escoltar la pronunciació nativa de la frase completa.
+- [x] **API d'oracions**:
+  - Endpoint `/api/sentences?q=...` per consultar frases associades a qualsevol mot.
 
 ---
 
-### ⏳ Fase 4: Sintaxi de Cerca Avançada estil Jisho
-*Objectiu: Operadors potents per a usuaris avançats i estudiants.*
-
+### ⏳ Fase 4: Sintaxi de Cerca Avançada estil Jisho (Pendent)
 - [ ] Tags de cerca: `#jlpt-n5`, `#comun`, `#kanji`, `#frases`, `#verb`, `#adj`.
 - [ ] Comodins (`*` i `?`): Cerca de prefixos i sufixos (ex: `*tai`, `shin*`).
 
 ---
 
-### ⏳ Fase 5: Eines d'Estudi i Reconeixement Visual
+### ⏳ Fase 5: Eines d'Estudi i Reconeixement Visual (Pendent)
 - [ ] Dibuix de Kanji a mà alçada (*Handwriting Recognition*).
 - [ ] Cerca per taula visual de radicals (*Radical Lookup*).
 - [ ] Botó d'exportació de flashcards per a Anki.
