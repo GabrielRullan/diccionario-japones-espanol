@@ -60,6 +60,8 @@ const kmRadical = document.getElementById('kmRadical');
 const kmMeanings = document.getElementById('kmMeanings');
 const kmOnReadings = document.getElementById('kmOnReadings');
 const kmKunReadings = document.getElementById('kmKunReadings');
+const kmStrokeContainer = document.getElementById('kmStrokeContainer');
+const kmAnimateStrokesBtn = document.getElementById('kmAnimateStrokesBtn');
 const kmSearchWordsBtn = document.getElementById('kmSearchWordsBtn');
 
 // Credits Modal Elements
@@ -155,12 +157,14 @@ async function loadStats() {
       const elNoun = document.getElementById('countNoun');
       const elAdj = document.getElementById('countAdj');
       const elExp = document.getElementById('countExp');
+      const elKanji = document.getElementById('countKanji');
 
       if (elAll && data.total) elAll.textContent = Number(data.total).toLocaleString('es-ES');
       if (elVerb && data.verbsCount) elVerb.textContent = Number(data.verbsCount).toLocaleString('es-ES');
       if (elNoun && data.nounsCount) elNoun.textContent = Number(data.nounsCount).toLocaleString('es-ES');
       if (elAdj && data.adjectivesCount) elAdj.textContent = Number(data.adjectivesCount).toLocaleString('es-ES');
       if (elExp && data.expressionsCount) elExp.textContent = Number(data.expressionsCount).toLocaleString('es-ES');
+      if (elKanji && data.kanjiCount) elKanji.textContent = Number(data.kanjiCount).toLocaleString('es-ES');
     }
   } catch (err) {
     console.warn('No se pudieron cargar las estadísticas:', err);
@@ -260,6 +264,39 @@ async function searchDictionary(reset = false, updateUrl = true) {
     }
   }
 
+  // 1. Modo Especial: Búsqueda de Kanjis
+  if (category === 'kanji') {
+    deinflectBanner.style.display = 'none';
+    let url = `/api/kanjis?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`;
+    if (jlpt && jlpt !== 'all') {
+      url += `&jlpt=${encodeURIComponent(jlpt)}`;
+    }
+
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+
+      totalAvailable = data.total || 0;
+      const newEntries = data.entries || [];
+
+      if (reset) {
+        allLoadedWords = newEntries;
+      } else {
+        allLoadedWords = [...allLoadedWords, ...newEntries];
+      }
+
+      currentOffset = allLoadedWords.length;
+      renderKanjiCards(allLoadedWords);
+      updateLoadMoreButton();
+      renderRecentBar();
+    } catch (err) {
+      console.error('Error consultando kanjis:', err);
+      cardsGrid.innerHTML = `<div class="empty-state"><p>Error cargando los kanjis. Por favor recarga la página.</p></div>`;
+    }
+    return;
+  }
+
+  // 2. Modo Normal: Búsqueda de Palabras
   let url = `/api/dictionary?q=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}&limit=${limit}&offset=${offset}`;
   if (jlpt && jlpt !== 'all') {
     url += `&jlpt=${encodeURIComponent(jlpt)}`;
@@ -310,7 +347,7 @@ function updateLoadMoreButton() {
   }
 }
 
-// Render cards
+// Render cards de Palabras
 function renderCards(words) {
   if (words.length === 0) {
     cardsGrid.style.display = 'none';
@@ -369,8 +406,7 @@ function renderCards(words) {
     `;
   }).join('');
 
-  // Attach card click handlers for modal
-  document.querySelectorAll('.dict-card').forEach(card => {
+  cardsGrid.querySelectorAll('.dict-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.card-play-btn')) return;
       const id = card.getAttribute('data-id');
@@ -379,6 +415,53 @@ function renderCards(words) {
         addWordToRecent(word);
         openModal(word, true);
       }
+    });
+  });
+}
+
+// Render cards de Kanjis
+function renderKanjiCards(kanjis) {
+  if (kanjis.length === 0) {
+    cardsGrid.style.display = 'none';
+    emptyState.style.display = 'block';
+    resultsCount.textContent = '0 kanjis encontrados';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  cardsGrid.style.display = 'grid';
+
+  const isSearchEmpty = currentSearchQuery.trim() === '';
+  if (isSearchEmpty) {
+    resultsCount.textContent = `Mostrando ${kanjis.length} de ${totalAvailable.toLocaleString('es-ES')} kanjis disponibles`;
+  } else {
+    resultsCount.textContent = `Kanjis para "${currentSearchQuery}": ${totalAvailable.toLocaleString('es-ES')} encontrados`;
+  }
+
+  cardsGrid.innerHTML = kanjis.map(k => {
+    const onStr = (k.onReadings && k.onReadings.length > 0) ? k.onReadings.slice(0, 3).join(', ') : '';
+    const kunStr = (k.kunReadings && k.kunReadings.length > 0) ? k.kunReadings.slice(0, 3).join(', ') : '';
+    const readings = [onStr, kunStr].filter(Boolean).join(' • ');
+    const meaning = (k.meaningsEs && k.meaningsEs.length > 0) ? k.meaningsEs.join(', ') : (k.meaningsEn ? k.meaningsEn.join(', ') : '-');
+
+    return `
+      <article class="kanji-card" data-char="${k.literal}">
+        <div class="kanji-card-char">${k.literal}</div>
+        ${readings ? `<div class="kanji-card-readings">${readings}</div>` : ''}
+        <div class="kanji-card-meaning">${meaning}</div>
+        <div class="kanji-card-footer">
+          <span class="badge badge-strokes">${k.strokes} trazos</span>
+          ${k.jlpt ? `<span class="badge badge-jlpt">${k.jlpt}</span>` : ''}
+          ${k.grade ? `<span class="badge badge-grade">Gr. ${k.grade}</span>` : ''}
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  cardsGrid.querySelectorAll('.kanji-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const char = card.getAttribute('data-char');
+      openKanjiModal(char, true);
     });
   });
 }
@@ -480,7 +563,9 @@ async function openModal(word, shouldPushState = true) {
   const kanjis = (word.kanji || '').match(/[\u4e00-\u9faf]/g) || [];
   if (kanjis.length > 0) {
     modalKanjiLinksList.innerHTML = [...new Set(kanjis)].map(k => `
-      <a href="/kanji/${encodeURIComponent(k)}" class="kanji-link-chip" data-char="${k}">${k}</a>
+      <a href="/kanji/${encodeURIComponent(k)}" class="kanji-link-chip" data-char="${k}" title="Ver orden de trazos y datos de ${k}">
+        ${k} 🖌️
+      </a>
     `).join('');
     modalKanjiLinksRow.style.display = 'flex';
 
@@ -557,7 +642,7 @@ function closeModal(shouldPushState = true) {
   }
 }
 
-// Dedicated Kanji Modal
+// Dedicated Kanji Modal with KanjiVG Stroke Diagram
 async function openKanjiModal(char, shouldPushState = true) {
   try {
     const res = await fetch(`/api/kanji/${encodeURIComponent(char)}`);
@@ -594,6 +679,29 @@ function renderKanjiModalData(k) {
   kmOnReadings.textContent = (k.onReadings && k.onReadings.length > 0) ? k.onReadings.join(', ') : '-';
   kmKunReadings.textContent = (k.kunReadings && k.kunReadings.length > 0) ? k.kunReadings.join(', ') : '-';
 
+  // Load KanjiVG Stroke Order Diagram
+  if (kmStrokeContainer) {
+    kmStrokeContainer.innerHTML = '<span class="stroke-loading">Cargando diagrama de trazos (KanjiVG)...</span>';
+    fetch(`/api/kanji/${encodeURIComponent(k.literal)}/stroke-order`)
+      .then(res => {
+        if (!res.ok) throw new Error('Diagrama no disponible');
+        return res.text();
+      })
+      .then(svgText => {
+        kmStrokeContainer.innerHTML = svgText;
+      })
+      .catch(() => {
+        kmStrokeContainer.innerHTML = '<span class="stroke-loading">Diagrama de trazos no disponible para este kanji</span>';
+      });
+  }
+
+  // Animate Strokes Button
+  if (kmAnimateStrokesBtn) {
+    kmAnimateStrokesBtn.onclick = () => {
+      animateKanjiStrokes();
+    };
+  }
+
   kmSearchWordsBtn.onclick = () => {
     closeKanjiModal(false);
     if (detailModal.style.display === 'flex') closeModal(false);
@@ -604,12 +712,32 @@ function renderKanjiModalData(k) {
   };
 }
 
+function animateKanjiStrokes() {
+  if (!kmStrokeContainer) return;
+  const svg = kmStrokeContainer.querySelector('svg');
+  if (!svg) return;
+
+  const paths = svg.querySelectorAll('path');
+  if (!paths.length) return;
+
+  paths.forEach((p, index) => {
+    const len = p.getTotalLength();
+    p.style.strokeDasharray = len;
+    p.style.strokeDashoffset = len;
+    p.style.transition = 'none';
+
+    setTimeout(() => {
+      p.style.transition = 'stroke-dashoffset 0.45s ease-in-out';
+      p.style.strokeDashoffset = '0';
+    }, index * 380);
+  });
+}
+
 function closeKanjiModal(shouldPushState = true) {
   kanjiModal.style.display = 'none';
   currentActiveKanji = null;
 
   if (detailModal.style.display === 'flex') {
-    // If word modal was behind it, keep it
     return;
   }
 
@@ -677,7 +805,7 @@ function setupEventListeners() {
     });
   }
 
-  // Category Pills
+  // Category Pills (includes Kanjis)
   filterPills.querySelectorAll('.pill').forEach(pill => {
     pill.addEventListener('click', () => {
       filterPills.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));

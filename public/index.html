@@ -82,6 +82,9 @@
         <button class="pill" data-category="expression">
           Expresiones <span class="pill-count" id="countExp">1.362</span>
         </button>
+        <button class="pill pill-kanji" data-category="kanji">
+          Kanjis <span class="pill-count" id="countKanji">13.108</span>
+        </button>
       </div>
     </section>
 
@@ -209,6 +212,22 @@
         <div class="reading-col">
           <span class="reading-label">Kun'yomi (訓読み):</span>
           <div class="reading-chips" id="kmKunReadings">さくら</div>
+        </div>
+      </div>
+
+      <!-- Stroke Order Section (KanjiVG) -->
+      <div class="kanji-stroke-section">
+        <div class="stroke-header">
+          <div class="stroke-title-row">
+            <span class="stroke-title">Orden de trazos (KanjiVG):</span>
+            <span class="stroke-subtitle">Numeración oficial paso a paso</span>
+          </div>
+          <button id="kmAnimateStrokesBtn" class="btn btn-sm btn-outline btn-animate" title="Animar trazos">
+            ▶ Animar trazos
+          </button>
+        </div>
+        <div id="kmStrokeContainer" class="kanji-stroke-box">
+          <span class="stroke-loading">Cargando trazos...</span>
         </div>
       </div>
 

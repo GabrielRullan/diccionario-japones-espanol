@@ -1209,3 +1209,142 @@ body {
   justify-content: flex-end;
 }
 
+/* KanjiVG Stroke Order Box */
+.kanji-stroke-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.stroke-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.stroke-title-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.stroke-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--secondary);
+}
+
+.stroke-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.btn-animate {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  color: var(--primary);
+  border-color: var(--primary-border);
+}
+
+.btn-animate:hover {
+  background: var(--primary-light);
+}
+
+.kanji-stroke-box {
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.kanji-stroke-box svg {
+  max-width: 170px;
+  max-height: 170px;
+  width: 100%;
+  height: auto;
+}
+
+/* KanjiVG SVG Styling */
+.kanji-stroke-box svg path {
+  stroke: var(--primary) !important;
+  stroke-width: 3.5 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.kanji-stroke-box svg text {
+  fill: #B02A37 !important;
+  font-size: 8px !important;
+  font-weight: 700 !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* Stroke animation */
+@keyframes drawStroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.kanji-stroke-box.is-animating svg path {
+  animation: drawStroke 0.6s ease forwards;
+}
+
+/* Kanji Cards in Main Grid */
+.kanji-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-subtle);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.kanji-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary);
+}
+
+.kanji-card-char {
+  font-size: 3rem;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.kanji-card-readings {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.kanji-card-meaning {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.75rem;
+}
+
+.kanji-card-footer {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: auto;
+}
+
+

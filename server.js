@@ -316,6 +316,73 @@ app.get('/api/dictionary/:id', (req, res) => {
   }
 });
 
+// In-memory cache for KanjiVG SVGs
+const kanjivgCache = new Map();
+
+// API: Search and list Kanjis (KANJIDIC2)
+app.get('/api/kanjis', (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Base de datos no disponible' });
+  }
+
+  const q = (req.query.q || '').trim();
+  const jlptFilter = req.query.jlpt ? parseInt(req.query.jlpt, 10) : null;
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 48, 1), 100);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+  try {
+    if (q) {
+      const pattern = `%${q}%`;
+      let countSql = `SELECT COUNT(*) as total FROM kanjis WHERE (literal = ? OR on_readings_json LIKE ? OR kun_readings_json LIKE ? OR meanings_es_json LIKE ? OR meanings_en_json LIKE ?)`;
+      const countParams = [q, pattern, pattern, pattern, pattern];
+      if (jlptFilter) {
+        countSql += ' AND jlpt = ?';
+        countParams.push(jlptFilter);
+      }
+      const total = db.prepare(countSql).get(...countParams).total;
+
+      let selectSql = `SELECT * FROM kanjis WHERE (literal = ? OR on_readings_json LIKE ? OR kun_readings_json LIKE ? OR meanings_es_json LIKE ? OR meanings_en_json LIKE ?)`;
+      const selectParams = [q, pattern, pattern, pattern, pattern];
+      if (jlptFilter) {
+        selectSql += ' AND jlpt = ?';
+        selectParams.push(jlptFilter);
+      }
+      selectSql += `
+        ORDER BY
+          CASE WHEN literal = ? THEN 1 WHEN meanings_es_json LIKE ? THEN 2 ELSE 3 END,
+          CASE WHEN freq IS NOT NULL THEN freq ELSE 99999 END ASC,
+          strokes ASC
+        LIMIT ? OFFSET ?
+      `;
+      selectParams.push(q, `${q}%`, limit, offset);
+      const rows = db.prepare(selectSql).all(...selectParams);
+      res.json({ total, limit, offset, entries: rows.map(formatKanjiRow) });
+    } else {
+      let countSql = `SELECT COUNT(*) as total FROM kanjis WHERE 1=1`;
+      const countParams = [];
+      if (jlptFilter) {
+        countSql += ' AND jlpt = ?';
+        countParams.push(jlptFilter);
+      }
+      const total = db.prepare(countSql).get(...countParams).total;
+
+      let selectSql = `SELECT * FROM kanjis WHERE 1=1`;
+      const selectParams = [];
+      if (jlptFilter) {
+        selectSql += ' AND jlpt = ?';
+        selectParams.push(jlptFilter);
+      }
+      selectSql += ` ORDER BY CASE WHEN freq IS NOT NULL THEN freq ELSE 99999 END ASC, grade ASC, strokes ASC LIMIT ? OFFSET ?`;
+      selectParams.push(limit, offset);
+      const rows = db.prepare(selectSql).all(...selectParams);
+      res.json({ total, limit, offset, entries: rows.map(formatKanjiRow) });
+    }
+  } catch (e) {
+    console.error('Error buscando kanjis:', e);
+    res.status(500).json({ error: 'Error buscando kanjis' });
+  }
+});
+
 // API: Get Kanji details by character
 app.get('/api/kanji/:character', (req, res) => {
   if (!db) {
@@ -332,6 +399,38 @@ app.get('/api/kanji/:character', (req, res) => {
   } catch (err) {
     console.error('Error buscando kanji:', err);
     res.status(500).json({ error: 'Error buscando kanji' });
+  }
+});
+
+// API: Get KanjiVG Stroke Order SVG diagram
+app.get('/api/kanji/:character/stroke-order', async (req, res) => {
+  try {
+    const char = decodeURIComponent(req.params.character).trim();
+    if (!char) return res.status(400).send('Character required');
+
+    const codePoint = char.codePointAt(0);
+    const hex = codePoint.toString(16).padStart(5, '0');
+
+    if (kanjivgCache.has(hex)) {
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+      return res.send(kanjivgCache.get(hex));
+    }
+
+    const url = `https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/${hex}.svg`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return res.status(404).send('KanjiVG diagram not found for character');
+    }
+
+    let svg = await response.text();
+    kanjivgCache.set(hex, svg);
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.send(svg);
+  } catch (e) {
+    console.error('Error obteniendo diagrama KanjiVG:', e);
+    res.status(500).send('Error fetching KanjiVG stroke order');
   }
 });
 
