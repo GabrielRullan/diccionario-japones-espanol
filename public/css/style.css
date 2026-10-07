@@ -412,6 +412,20 @@ body {
   border-color: var(--secondary);
 }
 
+.card-play-btn.is-playing,
+.btn-audio.is-playing,
+.btn-icon.is-playing {
+  background-color: var(--primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--primary) !important;
+  animation: pulse-audio 0.6s infinite alternate;
+}
+
+@keyframes pulse-audio {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
 .dict-card-meaning {
   font-size: 1.1rem;
   font-weight: 600;

@@ -108,7 +108,7 @@ function renderCards(words) {
           </div>
         </div>
         <div class="dict-card-actions">
-          <button class="card-play-btn" data-audio="${w.kanji}" title="Escuchar pronunciación" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}')">
+          <button class="card-play-btn" data-audio="${w.kanji}" title="Escuchar pronunciación" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}', this)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
         </div>
@@ -174,10 +174,38 @@ function applyFilters() {
   }
 }
 
-// Speech Synthesis
-function playJapaneseAudio(text) {
+// Audio Player (Server TTS with Web Speech API fallback)
+let currentAudio = null;
+
+function playJapaneseAudio(text, triggerBtn = null) {
+  if (!text) return;
+
+  // Visual feedback on button
+  if (triggerBtn) {
+    triggerBtn.classList.add('is-playing');
+    setTimeout(() => triggerBtn.classList.remove('is-playing'), 1500);
+  }
+
+  // 1. Try server-side native audio stream (/api/tts)
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+
+  const audioUrl = `/api/tts?q=${encodeURIComponent(text)}`;
+  const audio = new Audio(audioUrl);
+  currentAudio = audio;
+
+  audio.play().catch(err => {
+    console.warn('Fallo al reproducir audio del servidor, usando SpeechSynthesis como respaldo:', err);
+    // 2. Fallback to browser SpeechSynthesis
+    playWebSpeechFallback(text);
+  });
+}
+
+function playWebSpeechFallback(text) {
   if (!('speechSynthesis' in window)) {
-    alert('La síntesis de voz no es soportada en este navegador.');
+    console.warn('La síntesis de voz no es soportada en este navegador.');
     return;
   }
 
@@ -187,7 +215,7 @@ function playJapaneseAudio(text) {
   utterance.rate = 0.85;
 
   const voices = window.speechSynthesis.getVoices();
-  const jpVoice = voices.find(v => v.lang.startsWith('ja') || v.lang === 'ja-JP');
+  const jpVoice = voices.find(v => v.lang && (v.lang.startsWith('ja') || v.lang === 'ja-JP'));
   if (jpVoice) {
     utterance.voice = jpVoice;
   }
@@ -317,7 +345,7 @@ function setupEventListeners() {
 
   modalAudioBtn.addEventListener('click', () => {
     if (currentActiveWord) {
-      playJapaneseAudio(currentActiveWord.kanji);
+      playJapaneseAudio(currentActiveWord.kanji, modalAudioBtn);
     }
   });
 
@@ -345,7 +373,7 @@ function setupEventListeners() {
   studyAudioBtn.addEventListener('click', () => {
     const words = currentFiltered.length > 0 ? currentFiltered : allWords;
     if (words[currentStudyIndex]) {
-      playJapaneseAudio(words[currentStudyIndex].kanji);
+      playJapaneseAudio(words[currentStudyIndex].kanji, studyAudioBtn);
     }
   });
 }

@@ -79,6 +79,35 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
+// API: Text-to-Speech proxy (returns native Japanese audio MP3)
+app.get('/api/tts', async (req, res) => {
+  const text = req.query.q;
+  if (!text) {
+    return res.status(400).send('Query parameter q is required');
+  }
+
+  try {
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ja&client=tw-ob&q=${encodeURIComponent(text)}`;
+    const response = await fetch(ttsUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).send('Error fetching TTS audio');
+    }
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    console.error('Error generating TTS:', err);
+    res.status(500).send('Internal server error generating TTS');
+  }
+});
+
 // Fallback to index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
