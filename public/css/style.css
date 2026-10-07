@@ -654,9 +654,9 @@ body {
   gap: 1.25rem;
 }
 
-/* Kanji Genkouyoushi Box (traditional crosshair practice grid) */
+/* Kanji Genkouyoushi Box & Dynamic Word Display */
 .kanji-grid-box {
-  width: 84px;
+  min-width: 84px;
   height: 84px;
   background: var(--surface);
   border: 1.5px solid var(--border);
@@ -665,30 +665,64 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
+  padding: 0 0.85rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
-.kanji-grid-box::before {
+/* Single kanji practice crosshairs */
+.kanji-grid-box.single-char {
+  width: 84px;
+  padding: 0;
+}
+
+.kanji-grid-box.single-char::before {
   content: '';
   position: absolute;
   width: 100%;
   height: 0;
   border-top: 1px dashed #D5CFCA;
+  pointer-events: none;
 }
 
-.kanji-grid-box::after {
+.kanji-grid-box.single-char::after {
   content: '';
   position: absolute;
   height: 100%;
   width: 0;
   border-left: 1px dashed #D5CFCA;
+  pointer-events: none;
 }
 
 .modal-kanji {
-  font-size: 3.25rem;
   font-family: var(--font-serif);
   font-weight: 700;
   color: var(--text-main);
   z-index: 1;
+  white-space: nowrap;
+  line-height: 1;
+  text-align: center;
+  display: block;
+}
+
+.kanji-grid-box.len-1 .modal-kanji {
+  font-size: 3rem;
+}
+
+.kanji-grid-box.len-2 .modal-kanji {
+  font-size: 2.15rem;
+  letter-spacing: 0.05em;
+}
+
+.kanji-grid-box.len-3 .modal-kanji {
+  font-size: 1.75rem;
+  letter-spacing: 0.03em;
+}
+
+.kanji-grid-box.len-4 .modal-kanji {
+  font-size: 1.45rem;
+  letter-spacing: 0.02em;
 }
 
 .modal-reading {

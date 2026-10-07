@@ -199,6 +199,22 @@ function playJapaneseAudio(text) {
 function openModal(word) {
   currentActiveWord = word;
   modalKanji.textContent = word.kanji;
+
+  const kanjiBox = document.querySelector('.kanji-grid-box');
+  if (kanjiBox) {
+    const len = (word.kanji || '').length;
+    kanjiBox.className = 'kanji-grid-box';
+    if (len <= 1) {
+      kanjiBox.classList.add('single-char', 'len-1');
+    } else if (len === 2) {
+      kanjiBox.classList.add('len-2');
+    } else if (len === 3) {
+      kanjiBox.classList.add('len-3');
+    } else {
+      kanjiBox.classList.add('len-4');
+    }
+  }
+
   modalHiragana.textContent = word.hiragana;
   modalRomaji.textContent = word.romaji;
   modalCategoryBadge.textContent = word.category_es;
