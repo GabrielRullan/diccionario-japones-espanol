@@ -19,6 +19,7 @@ USER node
 COPY --chown=node:node package*.json ./
 COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 COPY --chown=node:node server.js ./
+COPY --chown=node:node lib ./lib
 COPY --chown=node:node data ./data
 COPY --chown=node:node public ./public
 
