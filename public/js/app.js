@@ -1,4 +1,5 @@
 // Murasaki no Jisho - Diccionario Japonés-Español (JMdict-Simplified)
+// Sistema de URLs permalink estilo Jisho.org: /word/:kanji y /search/:query
 
 let allLoadedWords = [];
 let totalAvailable = 0;
@@ -51,9 +52,57 @@ let currentActiveWord = null;
 document.addEventListener('DOMContentLoaded', async () => {
   loadRecentFromStorage();
   await loadStats();
-  await searchDictionary(true);
   setupEventListeners();
+  await handleInitialRoute();
 });
+
+// Route Handler on page startup
+async function handleInitialRoute() {
+  const path = window.location.pathname;
+
+  // 1. Direct word URL from server injection (__INITIAL_WORD__)
+  if (window.__INITIAL_WORD__) {
+    const word = window.__INITIAL_WORD__;
+    addWordToRecent(word);
+    openModal(word, false);
+    await searchDictionary(true, false);
+    return;
+  }
+
+  // 2. Direct /word/:slug or /palabra/:slug in URL
+  const wordMatch = path.match(/^\/(?:word|palabra)\/(.+)$/);
+  if (wordMatch) {
+    const term = decodeURIComponent(wordMatch[1]);
+    await searchDictionary(true, false);
+    await openWordByTerm(term, false);
+    return;
+  }
+
+  // 3. Direct /search/:query or query parameter ?q=
+  let initialQ = window.__INITIAL_SEARCH__ || '';
+  if (!initialQ) {
+    const searchMatch = path.match(/^\/search\/(.+)$/);
+    if (searchMatch) {
+      initialQ = decodeURIComponent(searchMatch[1]);
+    } else {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('q')) {
+        initialQ = urlParams.get('q');
+      }
+    }
+  }
+
+  if (initialQ) {
+    searchInput.value = initialQ;
+    currentSearchQuery = initialQ;
+    clearSearchBtn.style.display = 'block';
+    await searchDictionary(true, false);
+    return;
+  }
+
+  // 4. Default: load home list
+  await searchDictionary(true, false);
+}
 
 // Load stats from API
 async function loadStats() {
@@ -122,26 +171,29 @@ function renderRecentBar() {
     const id = typeof item === 'object' ? item.id : item;
     const kanji = typeof item === 'object' ? item.kanji : id;
     const reading = typeof item === 'object' ? item.hiragana : '';
+    const wordSlug = kanji || id;
     return `
-      <button class="recent-chip" data-id="${id}">
+      <a class="recent-chip" href="/word/${encodeURIComponent(wordSlug)}" data-id="${id}" data-slug="${encodeURIComponent(wordSlug)}">
         <span>${kanji}</span>
         ${reading ? `<span class="recent-chip-reading">${reading}</span>` : ''}
-      </button>
+      </a>
     `;
   }).join('');
 
   recentContainer.style.display = 'flex';
 
   recentChips.querySelectorAll('.recent-chip').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      await openModalById(id);
+    btn.addEventListener('click', async (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+      e.preventDefault();
+      const slug = decodeURIComponent(btn.getAttribute('data-slug'));
+      await openWordByTerm(slug, true);
     });
   });
 }
 
 // Core Dictionary API Search
-async function searchDictionary(reset = false) {
+async function searchDictionary(reset = false, updateUrl = true) {
   if (reset) {
     currentOffset = 0;
     allLoadedWords = [];
@@ -151,6 +203,21 @@ async function searchDictionary(reset = false) {
   const category = activeCategory;
   const limit = PAGE_SIZE;
   const offset = currentOffset;
+
+  if (updateUrl && !currentActiveWord) {
+    if (q) {
+      const searchUrl = `/search/${encodeURIComponent(q)}`;
+      if (window.location.pathname !== searchUrl) {
+        history.replaceState({ type: 'search', q }, `Buscar "${q}" - Diccionario Japonés-Español | Murasaki no Jisho`, searchUrl);
+        document.title = `Buscar "${q}" - Diccionario Japonés-Español | Murasaki no Jisho`;
+      }
+    } else {
+      if (window.location.pathname !== '/') {
+        history.replaceState({ type: 'home' }, 'Murasaki no Jisho | Diccionario Japonés-Español', '/');
+        document.title = 'Murasaki no Jisho | Diccionario Japonés-Español';
+      }
+    }
+  }
 
   const url = `/api/dictionary?q=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}&limit=${limit}&offset=${offset}`;
 
@@ -207,48 +274,56 @@ function renderCards(words) {
     resultsCount.textContent = `Resultados para "${currentSearchQuery}": ${totalAvailable.toLocaleString('es-ES')} encontradas`;
   }
 
-  cardsGrid.innerHTML = words.map(w => `
-    <article class="dict-card" data-id="${w.id}">
-      <div class="dict-card-top">
-        <div class="dict-card-headword">
-          <span class="dict-kanji">${w.kanji}</span>
-          <div class="dict-reading">
-            <span class="dict-hiragana">${w.hiragana}</span>
-            <span class="dict-romaji">${w.romaji}</span>
+  cardsGrid.innerHTML = words.map(w => {
+    const wordSlug = w.kanji || w.id;
+    return `
+      <article class="dict-card" data-id="${w.id}" data-slug="${encodeURIComponent(wordSlug)}">
+        <div class="dict-card-top">
+          <div class="dict-card-headword">
+            <a href="/word/${encodeURIComponent(wordSlug)}" class="dict-card-link" onclick="event.preventDefault();">
+              <span class="dict-kanji">${w.kanji}</span>
+              <div class="dict-reading">
+                <span class="dict-hiragana">${w.hiragana}</span>
+                <span class="dict-romaji">${w.romaji}</span>
+              </div>
+            </a>
+          </div>
+          <div class="dict-card-actions">
+            <button class="card-play-btn" data-audio="${w.kanji}" title="Escuchar pronunciación" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}', this)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            </button>
           </div>
         </div>
-        <div class="dict-card-actions">
-          <button class="card-play-btn" data-audio="${w.kanji}" title="Escuchar pronunciación" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}', this)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-          </button>
+
+        <div class="dict-card-meaning">${w.spanish}</div>
+
+        <div class="dict-card-definitions">
+          ${w.definitions && w.definitions.length > 1 ? `
+            <ul class="mini-defs-list">
+              ${w.definitions.slice(1, 3).map(d => `<li>${d}</li>`).join('')}
+            </ul>
+          ` : ''}
         </div>
-      </div>
 
-      <div class="dict-card-meaning">${w.spanish}</div>
+        <div class="dict-card-footer">
+          <span class="badge badge-category">${w.category_es}</span>
+          ${w.common ? `<span class="badge badge-common">Común</span>` : `<span class="badge badge-general">General</span>`}
+        </div>
+      </article>
+    `;
+  }).join('');
 
-      <div class="dict-card-definitions">
-        ${w.definitions && w.definitions.length > 1 ? `
-          <ul class="mini-defs-list">
-            ${w.definitions.slice(1, 3).map(d => `<li>${d}</li>`).join('')}
-          </ul>
-        ` : ''}
-      </div>
-
-      <div class="dict-card-footer">
-        <span class="badge badge-category">${w.category_es}</span>
-        ${w.common ? `<span class="badge badge-common">Común</span>` : `<span class="badge badge-general">General</span>`}
-      </div>
-    </article>
-  `).join('');
-
-  // Attach card click handlers for modal
+  // Attach card click handlers for modal with pushState
   document.querySelectorAll('.dict-card').forEach(card => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', (e) => {
+      // If user clicked audio button, ignore
+      if (e.target.closest('.card-play-btn')) return;
+
       const id = card.getAttribute('data-id');
       const word = allLoadedWords.find(w => w.id === id);
       if (word) {
         addWordToRecent(word);
-        openModal(word);
+        openModal(word, true);
       }
     });
   });
@@ -300,6 +375,26 @@ function playWebSpeechFallback(text) {
   window.speechSynthesis.speak(utterance);
 }
 
+// Modal View by Word identifier / term
+async function openWordByTerm(term, shouldPushState = true) {
+  let word = allLoadedWords.find(w => w.kanji === term || w.id === term || w.hiragana === term);
+  if (!word) {
+    try {
+      const res = await fetch(`/api/dictionary/word/${encodeURIComponent(term)}`);
+      if (res.ok) {
+        word = await res.json();
+      }
+    } catch (e) {
+      console.warn('Error buscando palabra por término:', e);
+    }
+  }
+
+  if (word) {
+    addWordToRecent(word);
+    openModal(word, shouldPushState);
+  }
+}
+
 // Modal View by ID
 async function openModalById(id) {
   let word = allLoadedWords.find(w => w.id === id);
@@ -311,12 +406,12 @@ async function openModalById(id) {
   }
   if (word) {
     addWordToRecent(word);
-    openModal(word);
+    openModal(word, true);
   }
 }
 
-// Modal View
-function openModal(word) {
+// Modal View with Jisho.org URL pushState
+function openModal(word, shouldPushState = true) {
   currentActiveWord = word;
   modalKanji.textContent = word.kanji;
 
@@ -345,12 +440,36 @@ function openModal(word) {
 
   detailModal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+
+  // Update URL to /word/:kanji
+  const wordSlug = word.kanji || word.id;
+  const wordUrl = `/word/${encodeURIComponent(wordSlug)}`;
+  const title = `${word.kanji} (${word.hiragana}) - Diccionario Japonés-Español | Murasaki no Jisho`;
+  document.title = title;
+
+  if (shouldPushState && window.location.pathname !== wordUrl) {
+    history.pushState({ type: 'word', slug: wordSlug }, title, wordUrl);
+  }
 }
 
-function closeModal() {
+function closeModal(shouldPushState = true) {
   detailModal.style.display = 'none';
   document.body.style.overflow = 'auto';
   currentActiveWord = null;
+
+  // Restore URL to search or home
+  const q = currentSearchQuery.trim();
+  let returnUrl = '/';
+  let title = 'Murasaki no Jisho | Diccionario Japonés-Español';
+  if (q) {
+    returnUrl = `/search/${encodeURIComponent(q)}`;
+    title = `Buscar "${q}" - Diccionario Japonés-Español | Murasaki no Jisho`;
+  }
+
+  document.title = title;
+  if (shouldPushState && window.location.pathname !== returnUrl) {
+    history.pushState({ type: q ? 'search' : 'home' }, title, returnUrl);
+  }
 }
 
 // Credits Modal
@@ -374,7 +493,7 @@ function setupEventListeners() {
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
       currentSearchQuery = val;
-      searchDictionary(true);
+      searchDictionary(true, true);
     }, 250);
   });
 
@@ -382,7 +501,7 @@ function setupEventListeners() {
     searchInput.value = '';
     currentSearchQuery = '';
     clearSearchBtn.style.display = 'none';
-    searchDictionary(true);
+    searchDictionary(true, true);
     searchInput.focus();
   });
 
@@ -398,7 +517,7 @@ function setupEventListeners() {
   // Load More Button
   if (loadMoreBtn) {
     loadMoreBtn.addEventListener('click', () => {
-      searchDictionary(false);
+      searchDictionary(false, false);
     });
   }
 
@@ -408,14 +527,14 @@ function setupEventListeners() {
       filterPills.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       activeCategory = pill.getAttribute('data-category');
-      searchDictionary(true);
+      searchDictionary(true, false);
     });
   });
 
   // Word Detail Modal events
-  closeModalBtn.addEventListener('click', closeModal);
+  closeModalBtn.addEventListener('click', () => closeModal(true));
   detailModal.addEventListener('click', (e) => {
-    if (e.target === detailModal) closeModal();
+    if (e.target === detailModal) closeModal(true);
   });
 
   // Credits Modal events
@@ -436,10 +555,42 @@ function setupEventListeners() {
     });
   }
 
+  // Browser Navigation: Popstate (Back / Forward buttons)
+  window.addEventListener('popstate', async (e) => {
+    const path = window.location.pathname;
+    const wordMatch = path.match(/^\/(?:word|palabra)\/(.+)$/);
+
+    if (wordMatch) {
+      const term = decodeURIComponent(wordMatch[1]);
+      await openWordByTerm(term, false);
+    } else {
+      if (detailModal.style.display === 'flex') {
+        closeModal(false);
+      }
+      const searchMatch = path.match(/^\/search\/(.+)$/);
+      if (searchMatch) {
+        const q = decodeURIComponent(searchMatch[1]);
+        if (searchInput.value !== q) {
+          searchInput.value = q;
+          currentSearchQuery = q;
+          clearSearchBtn.style.display = 'block';
+          await searchDictionary(true, false);
+        }
+      } else {
+        if (searchInput.value !== '') {
+          searchInput.value = '';
+          currentSearchQuery = '';
+          clearSearchBtn.style.display = 'none';
+          await searchDictionary(true, false);
+        }
+      }
+    }
+  });
+
   // Escape key closes modals
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (detailModal.style.display === 'flex') closeModal();
+      if (detailModal.style.display === 'flex') closeModal(true);
       if (creditsModal && creditsModal.style.display === 'flex') closeCredits();
     }
   });

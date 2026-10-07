@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 8080;
 
 // Connect to SQLite dictionary database
 const dbPath = path.join(__dirname, 'data', 'dictionary.db');
+const indexPath = path.join(__dirname, 'public', 'index.html');
 let db = null;
 
 try {
@@ -19,7 +20,7 @@ try {
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // Health check endpoint for Google Cloud Run
 app.get('/health', (req, res) => {
@@ -41,6 +42,16 @@ app.get('/api/attribution', (req, res) => {
     description: 'Este servicio utiliza el archivo de diccionario JMdict de acuerdo con la licencia de EDRDG y del proyecto JMdict-Simplified creado por scriptin.'
   });
 });
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // Helper: transform SQLite row to API object
 function formatWordRow(row) {
@@ -176,6 +187,25 @@ app.get('/api/dictionary', (req, res) => {
   }
 });
 
+// API: Get entry by Word identifier (kanji / hiragana / ID)
+app.get('/api/dictionary/word/:identifier', (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Base de datos no disponible' });
+  }
+
+  try {
+    const rawId = decodeURIComponent(req.params.identifier);
+    const row = db.prepare('SELECT * FROM words WHERE kanji = ? OR hiragana = ? OR id = ? ORDER BY common DESC LIMIT 1').get(rawId, rawId, rawId);
+    if (!row) {
+      return res.status(404).json({ error: 'Palabra no encontrada' });
+    }
+    res.json(formatWordRow(row));
+  } catch (err) {
+    console.error('Error buscando palabra por identificador:', err);
+    res.status(500).json({ error: 'Error buscando palabra' });
+  }
+});
+
 // API: Get entry by ID
 app.get('/api/dictionary/:id', (req, res) => {
   if (!db) {
@@ -255,13 +285,72 @@ app.get('/api/tts', async (req, res) => {
   }
 });
 
+// SEO & Deep-link: /word/:identifier (Jisho.org style URL)
+app.get(['/word/:identifier', '/palabra/:identifier'], (req, res) => {
+  try {
+    const identifier = decodeURIComponent(req.params.identifier);
+    let word = null;
+    if (db) {
+      const row = db.prepare('SELECT * FROM words WHERE kanji = ? OR hiragana = ? OR id = ? ORDER BY common DESC LIMIT 1').get(identifier, identifier, identifier);
+      if (row) {
+        word = formatWordRow(row);
+      }
+    }
+
+    let html = fs.readFileSync(indexPath, 'utf8');
+    if (word) {
+      const title = `${word.kanji} (${word.hiragana}) - Diccionario Japonés-Español | Murasaki no Jisho`;
+      const description = `Significado en español de ${word.kanji} (${word.hiragana} - ${word.romaji}): ${word.spanish}. Pronunciación, kanji y definiciones completas.`;
+      const wordJson = JSON.stringify(word).replace(/</g, '\\u003c');
+
+      html = html.replace('<title>Murasaki no Jisho | Diccionario Japonés-Español</title>', `<title>${escapeHtml(title)}</title>`);
+      html = html.replace(
+        '<meta name="description" content="Diccionario Japonés-Español interactivo con más de 34.300 entradas, kanji, hiragana, rōmaji y pronunciación nativa.">',
+        `<meta name="description" content="${escapeHtml(description)}">
+  <meta property="og:title" content="${escapeHtml(word.kanji + ' (' + word.hiragana + ') — ' + word.spanish)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:url" content="https://jisho.balears.tech/word/${encodeURIComponent(word.kanji || word.id)}">
+  <script>window.__INITIAL_WORD__ = ${wordJson};</script>`
+      );
+    }
+    res.send(html);
+  } catch (e) {
+    console.error('Error sirviendo ruta /word:', e);
+    res.sendFile(indexPath);
+  }
+});
+
+// SEO & Deep-link: /search/:query
+app.get('/search/:query', (req, res) => {
+  try {
+    const query = decodeURIComponent(req.params.query);
+    let html = fs.readFileSync(indexPath, 'utf8');
+    const title = `Buscar "${query}" - Diccionario Japonés-Español | Murasaki no Jisho`;
+    const queryJson = JSON.stringify(query).replace(/</g, '\\u003c');
+
+    html = html.replace('<title>Murasaki no Jisho | Diccionario Japonés-Español</title>', `<title>${escapeHtml(title)}</title>`);
+    html = html.replace(
+      '</head>',
+      `  <script>window.__INITIAL_SEARCH__ = ${queryJson};</script>\n</head>`
+    );
+    res.send(html);
+  } catch (e) {
+    res.sendFile(indexPath);
+  }
+});
+
+// Home page
+app.get('/', (req, res) => {
+  res.sendFile(indexPath);
+});
+
 // Fallback to index.html
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(indexPath);
 });
 
 app.listen(PORT, () => {
-  console.log(`Murasaki no Jisho executant-se a http://localhost:${PORT}`);
-  console.log(`Base de dades: 34.309 entrades de JMdict-Simplified`);
-  console.log(`Llest per a Google Cloud Run al port ${PORT}`);
+  console.log(`Murasaki no Jisho ejecutándose en http://localhost:${PORT}`);
+  console.log(`Base de datos: 34.309 entradas de JMdict-Simplified`);
+  console.log(`Rutas compatibles con Jisho.org: /word/:kanji y /search/:query`);
 });
