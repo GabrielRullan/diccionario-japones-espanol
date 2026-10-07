@@ -1,0 +1,29 @@
+steps:
+  # 1. Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/diccionario-japones-espanol:$COMMIT_SHA', '.']
+
+  # 2. Push image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/diccionario-japones-espanol:$COMMIT_SHA']
+
+  # 3. Deploy container image to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'diccionario-japones-espanol'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/diccionario-japones-espanol:$COMMIT_SHA'
+      - '--region'
+      - 'europe-west1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+images:
+  - 'gcr.io/$PROJECT_ID/diccionario-japones-espanol:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

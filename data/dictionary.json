@@ -1,0 +1,550 @@
+{
+  "metadata": {
+    "title": "Diccionario Japonés - Español (Kotoba Sol)",
+    "description": "Base de datos léxica para la aplicación de diccionario y fichas de estudio",
+    "version": "1.0.0",
+    "totalEntries": 30
+  },
+  "words": [
+    {
+      "id": "word-01",
+      "kanji": "食べる",
+      "hiragana": "たべる",
+      "romaji": "taberu",
+      "category": "word",
+      "category_es": "Verbo (Ichidan)",
+      "jlpt": "N5",
+      "spanish": "Comer",
+      "definitions": ["Tomar alimento por la boca", "Alimentarse"],
+      "example": {
+        "japanese": "毎日リンゴを食べます。",
+        "furigana": "毎日[まいにち]リンゴを食[た]べます。",
+        "romaji": "Mainichi ringo o tabemasu.",
+        "spanish": "Como una manzana todos los días."
+      },
+      "notes": "Verbo transitivo fundamental del grupo 2 (Ichidan)."
+    },
+    {
+      "id": "word-02",
+      "kanji": "行く",
+      "hiragana": "いく",
+      "romaji": "iku",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Ir",
+      "definitions": ["Moverse de un lugar hacia otro", "Acudir a un destino"],
+      "example": {
+        "japanese": "明日京都へ行きます。",
+        "furigana": "明日[あした]京都[きょうと]へ行[い]きます。",
+        "romaji": "Ashita Kyōto e ikimasu.",
+        "spanish": "Mañana voy a Kioto."
+      },
+      "notes": "Verbo intransitivo. En pasado formal irregular: 行きました (ikimashita)."
+    },
+    {
+      "id": "word-03",
+      "kanji": "見る",
+      "hiragana": "みる",
+      "romaji": "miru",
+      "category": "word",
+      "category_es": "Verbo (Ichidan)",
+      "jlpt": "N5",
+      "spanish": "Ver / Mirar",
+      "definitions": ["Percibir por los ojos", "Observar", "Examinar"],
+      "example": {
+        "japanese": "夜に映画を見ました。",
+        "furigana": "夜[よる]に映画[えいが]を見[み]ました。",
+        "romaji": "Yoru ni eiga o mimashita.",
+        "spanish": "Por la noche vi una película."
+      },
+      "notes": "Verbo transitivo esencial."
+    },
+    {
+      "id": "word-04",
+      "kanji": "話す",
+      "hiragana": "はなす",
+      "romaji": "hanasu",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Hablar",
+      "definitions": ["Comunicarse mediante palabras", "Conversar"],
+      "example": {
+        "japanese": "日本語で話しましょう。",
+        "furigana": "日本語[にほんご]で話[はな]しましょう。",
+        "romaji": "Nihongo de hanashimashō.",
+        "spanish": "Hablemos en japonés."
+      },
+      "notes": "Terminación en ~す."
+    },
+    {
+      "id": "word-05",
+      "kanji": "飲む",
+      "hiragana": "のむ",
+      "romaji": "nomu",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Beber / Tomar",
+      "definitions": ["Ingerir un líquido"],
+      "example": {
+        "japanese": "緑茶を飲みますか。",
+        "furigana": "緑茶[りょくちゃ]を飲[の]みますか。",
+        "romaji": "Ryokucha o nomimasu ka.",
+        "spanish": "¿Bebes té verde?"
+      },
+      "notes": "Aplica también para tomar medicinas en japonés (薬を飲む)."
+    },
+    {
+      "id": "word-06",
+      "kanji": "書く",
+      "hiragana": "かく",
+      "romaji": "kaku",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Escribir",
+      "definitions": ["Trazar signos o palabras", "Redactar"],
+      "example": {
+        "japanese": "手紙を書いています。",
+        "furigana": "手紙[てがみ]を書[か]いています。",
+        "romaji": "Tegami o kaite imasu.",
+        "spanish": "Estoy escribiendo una carta."
+      },
+      "notes": "Forma en te: 書いて (kaite)."
+    },
+    {
+      "id": "word-07",
+      "kanji": "読む",
+      "hiragana": "よむ",
+      "romaji": "yomu",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Leer",
+      "definitions": ["Interpretar textos escritos"],
+      "example": {
+        "japanese": "毎晩本を読みます。",
+        "furigana": "毎晩[まいばん]本[ほん]を読[よ]みます。",
+        "romaji": "Maiban hon o yomimasu.",
+        "spanish": "Leo un libro todas las noches."
+      },
+      "notes": "Forma en te: 読んで (yonde)."
+    },
+    {
+      "id": "word-08",
+      "kanji": "聞く",
+      "hiragana": "きく",
+      "romaji": "kiku",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Escuchar / Oír / Preguntar",
+      "definitions": ["Percibir sonidos", "Hacer una pregunta"],
+      "example": {
+        "japanese": "先生に質問を聞きました。",
+        "furigana": "先生[せんせい]に質問[しつもん]を聞[き]きました。",
+        "romaji": "Sensei ni shitsumon o kikimashita.",
+        "spanish": "Le hice una pregunta al profesor."
+      },
+      "notes": "Significa tanto escuchar como preguntar según el contexto de partículas."
+    },
+    {
+      "id": "word-09",
+      "kanji": "買う",
+      "hiragana": "かう",
+      "romaji": "kau",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Comprar",
+      "definitions": ["Adquirir un bien mediante pago"],
+      "example": {
+        "japanese": "新しい服を買いました。",
+        "furigana": "新[あたら]しい服[ふく]を買[か]いました。",
+        "romaji": "Atarashii fuku o kaimashita.",
+        "spanish": "Compré ropa nueva."
+      },
+      "notes": "Antónimo: 売る (uru - vender)."
+    },
+    {
+      "id": "word-10",
+      "kanji": "待つ",
+      "hiragana": "まつ",
+      "romaji": "matsu",
+      "category": "word",
+      "category_es": "Verbo (Godan)",
+      "jlpt": "N5",
+      "spanish": "Esperar",
+      "definitions": ["Aguardar la llegada de alguien o algo"],
+      "example": {
+        "japanese": "駅の前で待っています。",
+        "furigana": "駅[えき]の前[まえ]で待[ま]っています。",
+        "romaji": "Eki no mae de matte imasu.",
+        "spanish": "Estoy esperando frente a la estación."
+      },
+      "notes": "Forma en te: 待って (matte)."
+    },
+    {
+      "id": "noun-01",
+      "kanji": "桜",
+      "hiragana": "さくら",
+      "romaji": "sakura",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Flor de cerezo / Cerezo",
+      "definitions": ["Árbol de cerezo japonés", "Floración primaveral emblemática de Japón"],
+      "example": {
+        "japanese": "春には桜が美しく咲きます。",
+        "furigana": "春[はる]には桜[さくら]が美[うつく]しく咲[さ]きます。",
+        "romaji": "Haru ni wa sakura ga utsukushiku sakimasu.",
+        "spanish": "En primavera los cerezos florecen con gran belleza."
+      },
+      "notes": "Símbolo nacional de renovación y belleza efímera (mono no aware)."
+    },
+    {
+      "id": "noun-02",
+      "kanji": "猫",
+      "hiragana": "ねこ",
+      "romaji": "neko",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Gato",
+      "definitions": ["Felino doméstico"],
+      "example": {
+        "japanese": "庭に白くて可愛い猫がいます。",
+        "furigana": "庭[にわ]に白[しろ]くて可愛[かわい]い猫[ねこ]がいます。",
+        "romaji": "Niwa ni shirokute kawaii neko ga imasu.",
+        "spanish": "Hay un gato blanco y adorable en el jardín."
+      },
+      "notes": "Contador para animales pequeños: 匹 (hiki)."
+    },
+    {
+      "id": "noun-03",
+      "kanji": "水",
+      "hiragana": "みず",
+      "romaji": "mizu",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Agua (fría / del tiempo)",
+      "definitions": ["Líquido transparente vital", "Agua fresca de beber"],
+      "example": {
+        "japanese": "冷たい水を一杯ください。",
+        "furigana": "冷[つめ]たい水[みず]を一[いっ]杯[ぱい]ください。",
+        "romaji": "Tsumetai mizu o ippai kudasai.",
+        "spanish": "Por favor, deme un vaso de agua fría."
+      },
+      "notes": "Para agua caliente se utiliza お湯 (oyu)."
+    },
+    {
+      "id": "noun-04",
+      "kanji": "本",
+      "hiragana": "ほん",
+      "romaji": "hon",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Libro",
+      "definitions": ["Obra impresa o manuscrita", "Volumen encuadernado"],
+      "example": {
+        "japanese": "図書館で面白い本を借りました。",
+        "furigana": "図書館[としょかん]でおもしろい本[ほん]を借[か]りました。",
+        "romaji": "Toshokan de omoshiroi hon o karimashita.",
+        "spanish": "Tomé prestado un libro interesante en la biblioteca."
+      },
+      "notes": "Contador de libros: 冊 (satsu). 本 también actúa como contador para objetos cilíndricos largos."
+    },
+    {
+      "id": "noun-05",
+      "kanji": "車",
+      "hiragana": "くるま",
+      "romaji": "kuruma",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Coche / Automóvil / Vehículo",
+      "definitions": ["Vehículo motorizado de transporte", "Rueda o carruaje"],
+      "example": {
+        "japanese": "父は新しい車を運転しています。",
+        "furigana": "父[ちち]は新[あたら]しい車[くるま]を運転[うんてん]しています。",
+        "romaji": "Chichi wa atarashii kuruma o unten shite imasu.",
+        "spanish": "Mi padre conduce un coche nuevo."
+      },
+      "notes": "Contador para vehículos y maquinaria: 台 (dai)."
+    },
+    {
+      "id": "noun-06",
+      "kanji": "友達",
+      "hiragana": "ともだち",
+      "romaji": "tomodachi",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Amigo / Amiga",
+      "definitions": ["Persona con quien se mantiene una relación de afecto y confianza"],
+      "example": {
+        "japanese": "週末に友達とカフェに行きました。",
+        "furigana": "週末[しゅうまつ]に友達[ともだち]とカフェに行[い]きました。",
+        "romaji": "Shūmatsu ni tomodachi to kafe ni ikimashita.",
+        "spanish": "El fin de semana fui a un café con un amigo."
+      },
+      "notes": "El sufijo 達 (dachi) originalmente denota pluralidad."
+    },
+    {
+      "id": "noun-07",
+      "kanji": "時間",
+      "hiragana": "じかん",
+      "romaji": "jikan",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Tiempo / Hora",
+      "definitions": ["Duración temporal", "Lapso de horas"],
+      "example": {
+        "japanese": "映画が始まるまで時間があります。",
+        "furigana": "映画[えいが]が始[はじ]まるまで時間[じかん]があります。",
+        "romaji": "Eiga ga hajimaru made jikan ga arimasu.",
+        "spanish": "Hay tiempo antes de que empiece la película."
+      },
+      "notes": "Se usa como sufijo para contar horas: 2時間 (nijikan = 2 horas)."
+    },
+    {
+      "id": "noun-08",
+      "kanji": "空",
+      "hiragana": "そら",
+      "romaji": "sora",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Cielo",
+      "definitions": ["Bóveda celeste", "Firmeza aérea"],
+      "example": {
+        "japanese": "青い空に白い雲が浮かんでいます。",
+        "furigana": "青[あお]い空[そら]に白[しろ]い雲[くも]が浮[う]かんでいます。",
+        "romaji": "Aoi sora ni shiroi kumo ga ukande imasu.",
+        "spanish": "Nubes blancas flotan en el cielo azul."
+      },
+      "notes": "Lectura on'yomi frecuente: くう (kū), como en 空港 (kūkō - aeropuerto)."
+    },
+    {
+      "id": "noun-09",
+      "kanji": "家",
+      "hiragana": "いえ",
+      "romaji": "ie",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Casa / Hogar",
+      "definitions": ["Vivienda", "Edificación residencial"],
+      "example": {
+        "japanese": "夕方に家へ帰ります。",
+        "furigana": "夕方[ゆうがた]に家[いえ]へ帰[かえ]ります。",
+        "romaji": "Yūgata ni ie e kaerimasu.",
+        "spanish": "Regreso a casa al atardecer."
+      },
+      "notes": "También se lee うち (uchi) para expresar el propio hogar o familia."
+    },
+    {
+      "id": "noun-10",
+      "kanji": "山",
+      "hiragana": "やま",
+      "romaji": "yama",
+      "category": "noun",
+      "category_es": "Sustantivo",
+      "jlpt": "N5",
+      "spanish": "Montaña / Monte",
+      "definitions": ["Gran elevación natural del terreno"],
+      "example": {
+        "japanese": "夏休みに富士山に登りました。",
+        "furigana": "夏休[なつやす]みに富士山[ふじさん]に登[のぼ]りました。",
+        "romaji": "Natsuyasumi ni Fujisan ni noborimashita.",
+        "spanish": "En vacaciones de verano subí al monte Fuji."
+      },
+      "notes": "En nombres propios montañosos suele leerse さん/ざん (san/zan), ej. 富士山 (Fujisan)."
+    },
+    {
+      "id": "adj-01",
+      "kanji": "美しい",
+      "hiragana": "うつくしい",
+      "romaji": "utsukushii",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N4",
+      "spanish": "Bello / Hermoso",
+      "definitions": ["Que causa deleite visual o espiritual", "De notable armonía y hermosura"],
+      "example": {
+        "japanese": "夕暮れの景色がとても美しいです。",
+        "furigana": "夕暮[ゆうぐ]れの景色[けしき]がとても美[うつく]しいです。",
+        "romaji": "Yūgure no keshiki ga totemo utsukushii desu.",
+        "spanish": "El paisaje al atardecer es sumamente hermoso."
+      },
+      "notes": "Adjetivo en -i tradicional de alta elegancia estilística."
+    },
+    {
+      "id": "adj-02",
+      "kanji": "新しい",
+      "hiragana": "あたらしい",
+      "romaji": "atarashii",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N5",
+      "spanish": "Nuevo",
+      "definitions": ["Recién hecho, fabricado o adquirido", "No conocido con anterioridad"],
+      "example": {
+        "japanese": "新しい単語を覚えました。",
+        "furigana": "新[あたら]しい単語[たんご]を覚[おぼ]えました。",
+        "romaji": "Atarashii tango o oboemashita.",
+        "spanish": "Aprendí una nueva palabra de vocabulario."
+      },
+      "notes": "Antónimo: 古い (furui - viejo / antiguo)."
+    },
+    {
+      "id": "adj-03",
+      "kanji": "静か",
+      "hiragana": "しずか",
+      "romaji": "shizuka",
+      "category": "adjective",
+      "category_es": "Adjetivo (Na)",
+      "jlpt": "N5",
+      "spanish": "Tranquilo / Silencioso / Calmo",
+      "definitions": ["Libre de ruidos molestos", "Sereno y apacible"],
+      "example": {
+        "japanese": "この図書館はとても静かです。",
+        "furigana": "この図書館[としょかん]はとても静[しず]かです。",
+        "romaji": "Kono toshokan wa totemo shizuka desu.",
+        "spanish": "Esta biblioteca es muy silenciosa."
+      },
+      "notes": "Adjetivo tipo na: 静かな部屋 (habitación tranquila)."
+    },
+    {
+      "id": "adj-04",
+      "kanji": "高い",
+      "hiragana": "たかい",
+      "romaji": "takai",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N5",
+      "spanish": "Alto / Caro",
+      "definitions": ["De gran estatura o elevación", "De precio elevado"],
+      "example": {
+        "japanese": "このカメラは高すぎます。",
+        "furigana": "このカメラは高[たか]すぎます。",
+        "romaji": "Kono kamera wa takasugimasu.",
+        "spanish": "Esta cámara es demasiado cara."
+      },
+      "notes": "Antónimos: 低い (hikui - bajo de altura), 安い (yasui - barato)."
+    },
+    {
+      "id": "adj-05",
+      "kanji": "優しい",
+      "hiragana": "やさしい",
+      "romaji": "yasashii",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N5",
+      "spanish": "Amable / Gentil / Cariñoso",
+      "definitions": ["Agradable y considerado en el trato con los demás"],
+      "example": {
+        "japanese": "彼女はいつも誰にでも優しいです。",
+        "furigana": "彼女[かのじょ]はいつも誰[だれ]にでも優[やさ]しいです。",
+        "romaji": "Kanojo wa itsumo dare ni demo yasashii desu.",
+        "spanish": "Ella siempre es amable con todo el mundo."
+      },
+      "notes": "Homófono con 易しい (yasashii - fácil / sencillo)."
+    },
+    {
+      "id": "adj-06",
+      "kanji": "楽しい",
+      "hiragana": "たのしい",
+      "romaji": "tanoshii",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N5",
+      "spanish": "Divertido / Agradable / Placentero",
+      "definitions": ["Que causa deleite, alegría y entretenimiento"],
+      "example": {
+        "japanese": "日本語の勉強はとても楽しいです。",
+        "furigana": "日本語[にほんご]の勉強[べんきょう]はとても楽[たの]しいです。",
+        "romaji": "Nihongo no benkyō wa totemo tanoshii desu.",
+        "spanish": "Estudiar japonés es muy divertido."
+      },
+      "notes": "Forma adverbial: 楽しく (tanoshiku - alegremente)."
+    },
+    {
+      "id": "adj-07",
+      "kanji": "大きい",
+      "hiragana": "おおきい",
+      "romaji": "ookii",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N5",
+      "spanish": "Grande",
+      "definitions": ["Que supera el tamaño ordinario o regular"],
+      "example": {
+        "japanese": "公園に大きな木があります。",
+        "furigana": "公園[こうえん]に大[おお]きな木[き]があります。",
+        "romaji": "Kōen ni ookina ki ga arimasu.",
+        "spanish": "Hay un árbol grande en el parque."
+      },
+      "notes": "Adjetivo -i que también tiene la forma prenominal 大きな (ookina)."
+    },
+    {
+      "id": "adj-08",
+      "kanji": "綺麗",
+      "hiragana": "きれい",
+      "romaji": "kirei",
+      "category": "adjective",
+      "category_es": "Adjetivo (Na)",
+      "jlpt": "N5",
+      "spanish": "Limpio / Hermoso / Bonito",
+      "definitions": ["Agradable a la vista", "Aseado y libre de suciedad"],
+      "example": {
+        "japanese": "部屋を綺麗に掃除しました。",
+        "furigana": "部屋[へや]を綺麗[きれい]に掃除[そうじ]しました。",
+        "romaji": "Heya o kirei ni sōji shimashita.",
+        "spanish": "Limpié la habitación y la dejé reluciente."
+      },
+      "notes": "¡Ojo! Termina en sonido 'i' pero es un adjetivo NA (綺麗だ / 綺麗な)."
+    },
+    {
+      "id": "adj-09",
+      "kanji": "暖かい",
+      "hiragana": "あたたかい",
+      "romaji": "atatakai",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N5",
+      "spanish": "Cálido / Templado (clima / ambiente)",
+      "definitions": ["Que proporciona calor suave y agradable"],
+      "example": {
+        "japanese": "今日は春のように暖かいです。",
+        "furigana": "今日[きょう]は春[はる]のように暖[あたた]かいです。",
+        "romaji": "Kyō wa haru no yō ni atatakai desu.",
+        "spanish": "Hoy hace un calor suave y agradable, como si fuera primavera."
+      },
+      "notes": "Para objetos calientes al tacto se usa 温かい (atatakai)."
+    },
+    {
+      "id": "adj-10",
+      "kanji": "難しい",
+      "hiragana": "むずかしい",
+      "romaji": "muzukashii",
+      "category": "adjective",
+      "category_es": "Adjetivo (I)",
+      "jlpt": "N5",
+      "spanish": "Difícil / Complicado",
+      "definitions": ["Que requiere esfuerzo o habilidad extraordinaria"],
+      "example": {
+        "japanese": "漢字は難しいですが、面白いです。",
+        "furigana": "漢字[かんじ]は難[むずか]しいですが、面白[おもしろ]いです。",
+        "romaji": "Kanji wa muzukashii desu ga, omoshiroi desu.",
+        "spanish": "Los kanjis son difíciles, pero interesantes."
+      },
+      "notes": "Coloquialmente a veces pronunciado 'mukazashii'."
+    }
+  ]
+}
