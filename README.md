@@ -103,25 +103,40 @@ firebase deploy --only hosting
 
 ```
 ├── data/
-│   └── dictionary.json         # Base de datos JSON de 30 entradas
+│   ├── dictionary.db           # Base de datos SQLite optimizada (34.309 entradas)
+│   ├── jmdict-spa-3.6.2.json   # Dataset descargado de JMdict-Simplified
+│   └── dictionary.json         # Dataset básico inicial
+├── scripts/
+│   └── build-db.js             # Generador de SQLite a partir de JMdict
 ├── public/
 │   ├── css/
-│   │   └── style.css           # Estilos Kotoba Sol (diseño Stitch)
+│   │   └── style.css           # Estilos Murasaki no Jisho (diseño Stitch)
 │   ├── js/
-│   │   └── app.js              # Lógica de búsqueda, modal y fichas
-│   └── index.html              # Interfaz de usuario interactiva
+│   │   └── app.js              # Lógica de búsqueda SQLite, modal y caché
+│   └── index.html              # Interfaz interactiva con reconocimiento
 ├── Dockerfile                  # Contenedor productivo para Cloud Run
 ├── .dockerignore               # Archivos omitidos en la imagen Docker
 ├── cloudbuild.yaml             # Pipeline CI/CD para Google Cloud Build
 ├── deploy-cloudrun.ps1         # Script de despliegue directo PowerShell
 ├── firebase.json               # Configuración de Firebase Hosting
 ├── package.json                # Dependencias y scripts de Node
-├── server.js                   # Servidor Express con endpoints REST
+├── server.js                   # Servidor Express con endpoints SQLite y TTS
 └── README.md                   # Documentación del proyecto
 ```
 
 ---
 
-## 📜 Licencia
+## 📜 Reconeixement i Llicències (Attribution & Licenses)
 
-MIT © Gabriel Rul-lan
+Aquest projecte fa ús de dades lingüístiques completes de japonès a castellà:
+
+1. **JMdict (Electronic Dictionary Research and Development Group - EDRDG)**:
+   - This site has used the **JMdict** dictionary file in accordance with the licence statement of the **Electronic Dictionary Research and Development Group**.
+   - Autor original: **Jim Breen** i la comunitat mundial de col·laboradors.
+   - Pàgina oficial d'EDRDG: [http://www.edrdg.org/](http://www.edrdg.org/)
+
+2. **JMdict-Simplified**:
+   - Conversió a format estructurat JSON creada per **Ilya Skriblovsky (scriptin)**: [github.com/scriptin/jmdict-simplified](https://github.com/scriptin/jmdict-simplified).
+   - Llicència: [Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)](https://creativecommons.org/licenses/by-sa/3.0/).
+
+El codi de l'aplicació web està sota llicència MIT © Gabriel Rul-lan.

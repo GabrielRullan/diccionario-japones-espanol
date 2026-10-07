@@ -1,12 +1,12 @@
-# Multi-stage Dockerfile for Google Cloud Run
-FROM node:20-alpine AS builder
+# Multi-stage Dockerfile for Google Cloud Run (Node 24 with native node:sqlite)
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 

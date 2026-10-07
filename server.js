@@ -1,19 +1,20 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { DatabaseSync } = require('node:sqlite');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Load dictionary dataset
-const dataPath = path.join(__dirname, 'data', 'dictionary.json');
-let dictionaryData = { words: [] };
+// Connect to SQLite dictionary database
+const dbPath = path.join(__dirname, 'data', 'dictionary.db');
+let db = null;
 
 try {
-  const rawData = fs.readFileSync(dataPath, 'utf8');
-  dictionaryData = JSON.parse(rawData);
+  db = new DatabaseSync(dbPath);
+  console.log(`Base de datos SQLite conectada con éxito desde: ${dbPath}`);
 } catch (err) {
-  console.error('Error cargando diccionario:', err);
+  console.error('Error abriendo base de datos SQLite:', err);
 }
 
 // Middleware
@@ -25,58 +26,202 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// API: Get all entries with optional search/category filter
-app.get('/api/dictionary', (req, res) => {
-  const { q, category, jlpt } = req.query;
-  let results = dictionaryData.words;
-
-  if (category && category !== 'all') {
-    results = results.filter(w => w.category === category);
-  }
-
-  if (jlpt && jlpt !== 'all') {
-    results = results.filter(w => w.jlpt === jlpt);
-  }
-
-  if (q && q.trim()) {
-    const query = q.trim().toLowerCase();
-    results = results.filter(w =>
-      w.kanji.toLowerCase().includes(query) ||
-      w.hiragana.toLowerCase().includes(query) ||
-      w.romaji.toLowerCase().includes(query) ||
-      w.spanish.toLowerCase().includes(query) ||
-      w.definitions.some(d => d.toLowerCase().includes(query))
-    );
-  }
-
+// Attribution / Legal metadata endpoint
+app.get('/api/attribution', (req, res) => {
   res.json({
-    total: results.length,
-    entries: results
+    database: 'JMdict-Simplified (Edición en Español)',
+    databaseUrl: 'https://github.com/scriptin/jmdict-simplified',
+    version: '3.6.2',
+    dictDate: '2026-10-05',
+    originalProject: 'JMdict / Electronic Dictionary Research and Development Group (EDRDG)',
+    originalUrl: 'http://www.edrdg.org/edrdg/licence.html',
+    license: 'Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0)',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+    totalEntries: 34309,
+    description: 'Aquest servei fa ús del fitxer de diccionari JMdict d\'acord amb la llicència d\'EDRDG i del projecte JMdict-Simplified creat per scriptin.'
   });
+});
+
+// Helper: transform SQLite row to API object
+function formatWordRow(row) {
+  let definitions = [];
+  try {
+    definitions = JSON.parse(row.definitions_json || '[]');
+  } catch (e) {
+    definitions = [row.spanish];
+  }
+
+  let example = null;
+  if (row.example_json) {
+    try {
+      example = JSON.parse(row.example_json);
+    } catch (e) {}
+  }
+
+  return {
+    id: row.id,
+    kanji: row.kanji,
+    hiragana: row.hiragana,
+    romaji: row.romaji,
+    spanish: row.spanish,
+    category: row.category,
+    category_es: row.category_es,
+    common: Boolean(row.common),
+    definitions,
+    example,
+    notes: row.notes || 'Entrada oficial de JMdict (EDRDG)'
+  };
+}
+
+// API: Search and filter dictionary
+app.get('/api/dictionary', (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Base de datos no disponible' });
+  }
+
+  const q = (req.query.q || '').trim();
+  const category = req.query.category || 'all';
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+  try {
+    if (q) {
+      const pattern = `%${q}%`;
+      const prefixPattern = `${q}%`;
+
+      let countSql = `
+        SELECT COUNT(*) as total FROM words
+        WHERE (kanji LIKE ? OR hiragana LIKE ? OR romaji LIKE ? OR spanish LIKE ?)
+      `;
+      const countParams = [pattern, pattern, pattern, pattern];
+
+      if (category !== 'all') {
+        countSql += ` AND category = ?`;
+        countParams.push(category);
+      }
+
+      const countResult = db.prepare(countSql).get(...countParams);
+      const total = countResult ? countResult.total : 0;
+
+      let selectSql = `
+        SELECT * FROM words
+        WHERE (kanji LIKE ? OR hiragana LIKE ? OR romaji LIKE ? OR spanish LIKE ?)
+      `;
+      const selectParams = [pattern, pattern, pattern, pattern];
+
+      if (category !== 'all') {
+        selectSql += ` AND category = ?`;
+        selectParams.push(category);
+      }
+
+      selectSql += `
+        ORDER BY
+          CASE
+            WHEN kanji = ? THEN 1
+            WHEN hiragana = ? THEN 2
+            WHEN romaji = ? THEN 3
+            WHEN spanish = ? THEN 4
+            WHEN kanji LIKE ? THEN 5
+            WHEN hiragana LIKE ? THEN 6
+            ELSE 7
+          END,
+          common DESC,
+          length(kanji) ASC
+        LIMIT ? OFFSET ?
+      `;
+      selectParams.push(q, q, q, q, prefixPattern, prefixPattern, limit, offset);
+
+      const rows = db.prepare(selectSql).all(...selectParams);
+      res.json({
+        total,
+        limit,
+        offset,
+        entries: rows.map(formatWordRow)
+      });
+    } else {
+      // Empty search: return common words prioritized
+      let countSql = `SELECT COUNT(*) as total FROM words`;
+      const countParams = [];
+
+      if (category !== 'all') {
+        countSql += ` WHERE category = ?`;
+        countParams.push(category);
+      }
+
+      const countResult = db.prepare(countSql).get(...countParams);
+      const total = countResult ? countResult.total : 0;
+
+      let selectSql = `SELECT * FROM words`;
+      const selectParams = [];
+
+      if (category !== 'all') {
+        selectSql += ` WHERE category = ?`;
+        selectParams.push(category);
+      }
+
+      selectSql += ` ORDER BY common DESC, id ASC LIMIT ? OFFSET ?`;
+      selectParams.push(limit, offset);
+
+      const rows = db.prepare(selectSql).all(...selectParams);
+      res.json({
+        total,
+        limit,
+        offset,
+        entries: rows.map(formatWordRow)
+      });
+    }
+  } catch (err) {
+    console.error('Error en consulta de diccionario:', err);
+    res.status(500).json({ error: 'Error ejecutando la consulta' });
+  }
 });
 
 // API: Get entry by ID
 app.get('/api/dictionary/:id', (req, res) => {
-  const word = dictionaryData.words.find(w => w.id === req.params.id);
-  if (!word) {
-    return res.status(404).json({ error: 'Palabra no encontrada' });
+  if (!db) {
+    return res.status(500).json({ error: 'Base de datos no disponible' });
   }
-  res.json(word);
+
+  try {
+    const row = db.prepare('SELECT * FROM words WHERE id = ?').get(req.params.id);
+    if (!row) {
+      return res.status(404).json({ error: 'Palabra no encontrada' });
+    }
+    res.json(formatWordRow(row));
+  } catch (err) {
+    console.error('Error buscando palabra:', err);
+    res.status(500).json({ error: 'Error buscando palabra' });
+  }
 });
 
-// API: Categories summary
+// API: Summary Stats
 app.get('/api/stats', (req, res) => {
-  const words = dictionaryData.words;
-  res.json({
-    total: words.length,
-    wordsCount: words.filter(w => w.category === 'word').length,
-    nounsCount: words.filter(w => w.category === 'noun').length,
-    adjectivesCount: words.filter(w => w.category === 'adjective').length,
-    jlptCounts: {
-      N5: words.filter(w => w.jlpt === 'N5').length,
-      N4: words.filter(w => w.jlpt === 'N4').length
-    }
-  });
+  if (!db) {
+    return res.status(500).json({ error: 'Base de datos no disponible' });
+  }
+
+  try {
+    const stats = db.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN category = 'word' THEN 1 ELSE 0 END) as words,
+        SUM(CASE WHEN category = 'noun' THEN 1 ELSE 0 END) as nouns,
+        SUM(CASE WHEN category = 'adjective' THEN 1 ELSE 0 END) as adjectives,
+        SUM(common) as commonTotal
+      FROM words
+    `).get();
+
+    res.json({
+      total: stats.total,
+      wordsCount: stats.words,
+      nounsCount: stats.nouns,
+      adjectivesCount: stats.adjectives,
+      commonCount: stats.commonTotal
+    });
+  } catch (err) {
+    console.error('Error obteniendo estadísticas:', err);
+    res.status(500).json({ error: 'Error obteniendo estadísticas' });
+  }
 });
 
 // API: Text-to-Speech proxy (returns native Japanese audio MP3)
@@ -114,6 +259,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Murasaki no Jisho ejecutándose en http://localhost:${PORT}`);
-  console.log(`Listo para Google Cloud Run en puerto ${PORT}`);
+  console.log(`Murasaki no Jisho executant-se a http://localhost:${PORT}`);
+  console.log(`Base de dades: 34.309 entrades de JMdict-Simplified`);
+  console.log(`Llest per a Google Cloud Run al port ${PORT}`);
 });

@@ -1,14 +1,15 @@
 {
   "name": "diccionario-japones-espanol",
   "version": "1.0.0",
-  "description": "Diccionario interactivo Japonés-Español con diseño Kotoba Sol (Google Stitch) y preparado para Google Cloud Run",
+  "description": "Diccionario interactivo Japonés-Español con 34.300+ entradas de JMdict-Simplified, diseño Murasaki no Jisho (Stitch) y listo para Google Cloud Run",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build:db": "node scripts/build-db.js"
   },
-  "keywords": ["japanese", "spanish", "dictionary", "kotoba-sol", "stitch", "google-cloud-run"],
+  "keywords": ["japanese", "spanish", "dictionary", "murasaki-no-jisho", "jmdict", "stitch", "google-cloud-run"],
   "author": "Gabriel Rul-lan",
   "license": "MIT",
   "dependencies": {

@@ -22,7 +22,11 @@
         </div>
       </div>
       <div class="header-actions">
-        <span class="badge badge-cloud" title="Desplegado en Google Cloud">
+        <a href="#attributionSection" id="attributionHeaderLink" class="badge badge-jmdict" title="Base de dades basada en JMdict (EDRDG)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+          JMdict (34.300+ entrades)
+        </a>
+        <span class="badge badge-cloud" title="Desplegat a Google Cloud">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
           Cloud Run
         </span>
@@ -42,52 +46,45 @@
           type="text" 
           id="searchInput" 
           class="search-input" 
-          placeholder="Buscar por Kanji, Hiragana, Rōmaji o Español (ej. 桜, sakura, cerezo, comer)..." 
+          placeholder="Cerca en Kanji, Hiragana, Rōmaji o Castellà (ex. 桜, sakura, cerezo, comer, taberu)..." 
           autocomplete="off"
         >
-        <button id="clearSearchBtn" class="clear-btn" style="display: none;" title="Limpiar búsqueda">✕</button>
+        <button id="clearSearchBtn" class="clear-btn" style="display: none;" title="Netejar cerca">✕</button>
       </div>
 
       <!-- Recent Words Bar (Shown when search is empty) -->
       <div id="recentContainer" class="recent-bar" style="display: none;">
         <span class="recent-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Últimas consultadas:
+          Últimes consultades:
         </span>
         <div class="recent-chips" id="recentChips">
           <!-- Injected via JS -->
         </div>
-        <button id="clearRecentBtn" class="recent-clear-btn" title="Borrar historial">Borrar</button>
+        <button id="clearRecentBtn" class="recent-clear-btn" title="Esborrar historial">Esborrar</button>
       </div>
 
       <!-- Category Filter Pills -->
       <div class="filter-pills" id="filterPills">
         <button class="pill active" data-category="all">
-          Todos <span class="pill-count" id="countAll">30</span>
+          Totes <span class="pill-count" id="countAll">34.309</span>
         </button>
         <button class="pill" data-category="word">
-          Verbos / Palabras <span class="pill-count" id="countWord">10</span>
+          Verbs / Paraules <span class="pill-count" id="countWord">8.318</span>
         </button>
         <button class="pill" data-category="noun">
-          Sustantivos <span class="pill-count" id="countNoun">10</span>
+          Sustantius <span class="pill-count" id="countNoun">21.926</span>
         </button>
         <button class="pill" data-category="adjective">
-          Adjetivos <span class="pill-count" id="countAdj">10</span>
+          Adjectius <span class="pill-count" id="countAdj">4.065</span>
         </button>
       </div>
     </section>
 
     <!-- Results Status Bar -->
     <div class="results-bar">
-      <span id="resultsCount">Últimos resultados: 30 palabras</span>
-      <div class="jlpt-filter">
-        <label for="jlptSelect">Nivel JLPT:</label>
-        <select id="jlptSelect">
-          <option value="all">Todos los niveles</option>
-          <option value="N5">JLPT N5 (Básico)</option>
-          <option value="N4">JLPT N4 (Intermedio bajo)</option>
-        </select>
-      </div>
+      <span id="resultsCount">Últims resultats: 34.309 paraules disponibles</span>
+      <span class="results-source-tag">Font: <strong>JMdict-Simplified</strong> (CC BY-SA 3.0)</span>
     </div>
 
     <!-- Dictionary Cards Grid -->
@@ -95,19 +92,26 @@
       <!-- Injected via JavaScript -->
     </section>
 
+    <!-- Load More Button -->
+    <div id="loadMoreWrap" class="load-more-wrap" style="display: none;">
+      <button id="loadMoreBtn" class="btn btn-outline btn-load-more">
+        Carregar més paraules (<span id="loadMoreRemain">0</span> restants)
+      </button>
+    </div>
+
     <!-- Empty State -->
     <div id="emptyState" class="empty-state" style="display: none;">
       <div class="empty-icon">空</div>
-      <h3>No se encontraron palabras</h3>
-      <p>Prueba con otro término en kanji, hiragana, rōmaji o español.</p>
+      <h3>No s'han trobat paraules</h3>
+      <p>Prova amb un altre terme en kanji, hiragana, rōmaji o castellà.</p>
     </div>
 
   </main>
 
-  <!-- Word Detail Modal (Based on Stitch 'Detalle: 桜 (Sakura)' Screen) -->
+  <!-- Word Detail Modal -->
   <div id="detailModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
-      <button id="closeModalBtn" class="modal-close-btn" title="Cerrar">✕</button>
+      <button id="closeModalBtn" class="modal-close-btn" title="Tancar">✕</button>
 
       <div class="modal-header">
         <div class="modal-hero-kanji-wrap">
@@ -120,51 +124,87 @@
               <span id="modalRomaji" class="modal-romaji">sakura</span>
             </div>
             <div class="modal-badges">
-              <span id="modalCategoryBadge" class="badge badge-category">Sustantivo</span>
-              <span id="modalJlptBadge" class="badge badge-jlpt">JLPT N5</span>
+              <span id="modalCategoryBadge" class="badge badge-category">Sustantiu</span>
+              <span id="modalCommonBadge" class="badge badge-common">Comú</span>
             </div>
           </div>
         </div>
-        <button id="modalAudioBtn" class="btn btn-audio" title="Escuchar pronunciación nativa">
+        <button id="modalAudioBtn" class="btn btn-audio" title="Escoltar pronunciació nativa">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-          <span>Pronunciación</span>
+          <span>Pronunciació</span>
         </button>
       </div>
 
       <div class="modal-body">
         <!-- Definitions Section -->
         <div class="modal-section">
-          <h4 class="section-title">Traducción y Significado</h4>
+          <h4 class="section-title">Traducció i Significats (Espanyol)</h4>
           <div class="meaning-hero" id="modalSpanish">Flor de cerezo / Cerezo</div>
           <ul class="definitions-list" id="modalDefinitions">
             <!-- Injected via JS -->
           </ul>
         </div>
 
-        <!-- Example Sentence Section (Reibun) -->
-        <div class="modal-section">
-          <h4 class="section-title">Ejemplo de Uso (例文 - Reibun)</h4>
-          <div class="example-card">
-            <div class="example-jp" id="modalExampleJp">春には桜が美しく咲きます。</div>
-            <div class="example-romaji" id="modalExampleRomaji">Haru ni wa sakura ga utsukushiku sakimasu.</div>
-            <div class="example-es" id="modalExampleEs">En primavera los cerezos florecen con gran belleza.</div>
-          </div>
-        </div>
-
         <!-- Linguistic & Cultural Notes -->
         <div class="modal-section">
-          <h4 class="section-title">Notas Culturales y Gramaticales</h4>
-          <p class="notes-text" id="modalNotes"></p>
+          <h4 class="section-title">Notes Lexicogràfiques i Origen</h4>
+          <p class="notes-text" id="modalNotes">Entrada oficial del diccionari JMdict (EDRDG).</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer class="app-footer">
+  <!-- Attribution & Credits Modal -->
+  <div id="creditsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card credits-card">
+      <button id="closeCreditsBtn" class="modal-close-btn" title="Tancar">✕</button>
+      <div class="credits-header">
+        <span class="logo-seal">紫</span>
+        <div>
+          <h3>Reconeixement de Dades i Llicència</h3>
+          <p class="credits-sub">JMdict & JMdict-Simplified</p>
+        </div>
+      </div>
+      <div class="credits-body">
+        <p>Aquest lloc web (<strong>Murasaki no Jisho</strong>) utilitza dades lingüístiques completes de japonès a castellà procedents del projecte lliure <strong>JMdict</strong>.</p>
+        
+        <div class="credits-box">
+          <h4>Reconeixement Oficial EDRDG:</h4>
+          <p>This site has used the JMdict dictionary file in accordance with the licence statement of the <strong>Electronic Dictionary Research and Development Group</strong> (EDRDG).</p>
+          <p>Autor original: <strong>Jim Breen</strong> & col·laboradors d'arreu del món.</p>
+          <p>Web oficial: <a href="http://www.edrdg.org/" target="_blank" rel="noopener noreferrer">http://www.edrdg.org/</a></p>
+        </div>
+
+        <div class="credits-box">
+          <h4>Projecte JMdict-Simplified:</h4>
+          <p>Format i conversió JSON estructurada per <strong>scriptin (Ilya Skriblovsky)</strong>.</p>
+          <p>Repositori: <a href="https://github.com/scriptin/jmdict-simplified" target="_blank" rel="noopener noreferrer">github.com/scriptin/jmdict-simplified</a></p>
+          <p>Llicència: <strong>Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)</strong>.</p>
+        </div>
+
+        <p class="credits-license-note">Tots els drets sobre les entrades originals pertanyen als seus respectius autors d'EDRDG i la comunitat de col·laboradors hispanoparlants de JMdict.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer with Legal Attribution -->
+  <footer class="app-footer" id="attributionSection">
     <div class="container footer-content">
-      <p><strong>Murasaki no Jisho</strong> (紫の辞書) — Diccionario interactivo Japonés-Español.</p>
-      <p class="footer-sub">Diseñado con Google Stitch MCP • 30 Entradas JLPT • Listo para Google Cloud Run</p>
+      <p><strong>Murasaki no Jisho</strong> (紫の辞書) — Diccionari interactiu Japonès-Espanyol.</p>
+      <div class="footer-attribution-box">
+        <p>
+          Dades lingüístiques obtingudes de 
+          <a href="https://github.com/scriptin/jmdict-simplified" target="_blank" rel="noopener noreferrer"><strong>JMdict-Simplified</strong></a>, 
+          basat en el fitxer <strong>JMdict</strong> de l'
+          <a href="http://www.edrdg.org/" target="_blank" rel="noopener noreferrer"><strong>Electronic Dictionary Research and Development Group</strong> (EDRDG)</a>.
+        </p>
+        <p class="footer-license-line">
+          Distribuït sota llicència 
+          <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0)</a>.
+          <button id="openCreditsBtn" class="link-btn">Veure crèdits complets</button>
+        </p>
+      </div>
+      <p class="footer-sub">34.309 entrades en espanyol • Dissenyat amb Google Stitch MCP • Llest per a Google Cloud Run</p>
     </div>
   </footer>
 

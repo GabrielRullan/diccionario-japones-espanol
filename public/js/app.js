@@ -1,9 +1,13 @@
-// Murasaki no Jisho - Diccionario Japonés-Español
+// Murasaki no Jisho - Diccionario Japonés-Español (JMdict-Simplified)
 
-let allWords = [];
-let currentFiltered = [];
+let allLoadedWords = [];
+let totalAvailable = 0;
+let currentOffset = 0;
+const PAGE_SIZE = 48;
+
 let activeCategory = 'all';
-let activeJlpt = 'all';
+let currentSearchQuery = '';
+let searchDebounceTimer = null;
 let recentWordIds = [];
 
 const RECENT_STORAGE_KEY = 'murasaki_recent_words';
@@ -15,37 +19,58 @@ const cardsGrid = document.getElementById('cardsGrid');
 const emptyState = document.getElementById('emptyState');
 const resultsCount = document.getElementById('resultsCount');
 const filterPills = document.getElementById('filterPills');
-const jlptSelect = document.getElementById('jlptSelect');
+const loadMoreWrap = document.getElementById('loadMoreWrap');
+const loadMoreBtn = document.getElementById('loadMoreBtn');
+const loadMoreRemain = document.getElementById('loadMoreRemain');
 
 // Recent Bar Elements
 const recentContainer = document.getElementById('recentContainer');
 const recentChips = document.getElementById('recentChips');
 const clearRecentBtn = document.getElementById('clearRecentBtn');
 
-// Modal Elements
+// Word Detail Modal Elements
 const detailModal = document.getElementById('detailModal');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const modalKanji = document.getElementById('modalKanji');
 const modalHiragana = document.getElementById('modalHiragana');
 const modalRomaji = document.getElementById('modalRomaji');
 const modalCategoryBadge = document.getElementById('modalCategoryBadge');
-const modalJlptBadge = document.getElementById('modalJlptBadge');
+const modalCommonBadge = document.getElementById('modalCommonBadge');
 const modalSpanish = document.getElementById('modalSpanish');
 const modalDefinitions = document.getElementById('modalDefinitions');
-const modalExampleJp = document.getElementById('modalExampleJp');
-const modalExampleRomaji = document.getElementById('modalExampleRomaji');
-const modalExampleEs = document.getElementById('modalExampleEs');
 const modalNotes = document.getElementById('modalNotes');
 const modalAudioBtn = document.getElementById('modalAudioBtn');
+
+// Credits Modal Elements
+const creditsModal = document.getElementById('creditsModal');
+const openCreditsBtn = document.getElementById('openCreditsBtn');
+const closeCreditsBtn = document.getElementById('closeCreditsBtn');
 
 let currentActiveWord = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   loadRecentFromStorage();
-  await loadDictionary();
+  await loadStats();
+  await searchDictionary(true);
   setupEventListeners();
 });
+
+// Load stats from API
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    if (data) {
+      document.getElementById('countAll').textContent = Number(data.total).toLocaleString('ca-ES');
+      document.getElementById('countWord').textContent = Number(data.wordsCount).toLocaleString('ca-ES');
+      document.getElementById('countNoun').textContent = Number(data.nounsCount).toLocaleString('ca-ES');
+      document.getElementById('countAdj').textContent = Number(data.adjectivesCount).toLocaleString('ca-ES');
+    }
+  } catch (err) {
+    console.warn('No s\'han pogut carregar les estadístiques:', err);
+  }
+}
 
 // Load recent words from localStorage
 function loadRecentFromStorage() {
@@ -63,14 +88,17 @@ function saveRecentToStorage() {
   try {
     localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentWordIds));
   } catch (e) {
-    console.warn('No se pudo guardar en localStorage', e);
+    console.warn('Error guardant a localStorage:', e);
   }
 }
 
-function addWordToRecent(wordId) {
-  if (!wordId) return;
-  // Move to front, max 8 items
-  recentWordIds = [wordId, ...recentWordIds.filter(id => id !== wordId)].slice(0, 8);
+function addWordToRecent(word) {
+  if (!word || !word.id) return;
+  recentWordIds = [
+    { id: word.id, kanji: word.kanji, hiragana: word.hiragana },
+    ...recentWordIds.filter(item => (typeof item === 'object' ? item.id !== word.id : item !== word.id))
+  ].slice(0, 8);
+
   saveRecentToStorage();
   renderRecentBar();
 }
@@ -84,61 +112,74 @@ function renderRecentBar() {
     return;
   }
 
-  const recentWords = recentWordIds
-    .map(id => allWords.find(w => w.id === id))
-    .filter(Boolean);
-
-  if (recentWords.length === 0) {
-    recentContainer.style.display = 'none';
-    return;
-  }
-
-  recentChips.innerHTML = recentWords.map(w => `
-    <button class="recent-chip" data-id="${w.id}">
-      <span>${w.kanji}</span>
-      <span class="recent-chip-reading">${w.hiragana}</span>
-    </button>
-  `).join('');
+  recentChips.innerHTML = recentWordIds.map(item => {
+    const id = typeof item === 'object' ? item.id : item;
+    const kanji = typeof item === 'object' ? item.kanji : id;
+    const reading = typeof item === 'object' ? item.hiragana : '';
+    return `
+      <button class="recent-chip" data-id="${id}">
+        <span>${kanji}</span>
+        ${reading ? `<span class="recent-chip-reading">${reading}</span>` : ''}
+      </button>
+    `;
+  }).join('');
 
   recentContainer.style.display = 'flex';
 
-  // Attach chip click handlers
   recentChips.querySelectorAll('.recent-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
-      const word = allWords.find(w => w.id === id);
-      if (word) openModal(word);
+      await openModalById(id);
     });
   });
 }
 
-// Load dictionary from API
-async function loadDictionary() {
+// Core Dictionary API Search
+async function searchDictionary(reset = false) {
+  if (reset) {
+    currentOffset = 0;
+    allLoadedWords = [];
+  }
+
+  const q = currentSearchQuery.trim();
+  const category = activeCategory;
+  const limit = PAGE_SIZE;
+  const offset = currentOffset;
+
+  const url = `/api/dictionary?q=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}&limit=${limit}&offset=${offset}`;
+
   try {
-    const res = await fetch('/api/dictionary');
+    const res = await fetch(url);
     const data = await res.json();
-    allWords = data.entries || [];
-    currentFiltered = [...allWords];
-    renderCards(currentFiltered);
-    updateCategoryCounts();
+
+    totalAvailable = data.total || 0;
+    const newEntries = data.entries || [];
+
+    if (reset) {
+      allLoadedWords = newEntries;
+    } else {
+      allLoadedWords = [...allLoadedWords, ...newEntries];
+    }
+
+    currentOffset = allLoadedWords.length;
+    renderCards(allLoadedWords);
+    updateLoadMoreButton();
     renderRecentBar();
   } catch (err) {
-    console.error('Error al cargar datos del diccionario:', err);
-    cardsGrid.innerHTML = `<div class="empty-state"><p>Error cargando los datos. Por favor recarga la página.</p></div>`;
+    console.error('Error consultant el diccionari:', err);
+    cardsGrid.innerHTML = `<div class="empty-state"><p>Error carregant les dades. Si us plau recarrega la pàgina.</p></div>`;
   }
 }
 
-// Update counts on pills
-function updateCategoryCounts() {
-  const countAll = allWords.length;
-  const countWord = allWords.filter(w => w.category === 'word').length;
-  const countNoun = allWords.filter(w => w.category === 'noun').length;
-  const countAdj = allWords.filter(w => w.category === 'adjective').length;
-
-  document.getElementById('countAll').textContent = countAll;
-  document.getElementById('countWord').textContent = countWord;
-  document.getElementById('countNoun').textContent = countNoun;
-  document.getElementById('countAdj').textContent = countAdj;
+function updateLoadMoreButton() {
+  if (!loadMoreWrap) return;
+  const remaining = totalAvailable - allLoadedWords.length;
+  if (remaining > 0) {
+    loadMoreWrap.style.display = 'block';
+    loadMoreRemain.textContent = remaining.toLocaleString('ca-ES');
+  } else {
+    loadMoreWrap.style.display = 'none';
+  }
 }
 
 // Render cards
@@ -146,18 +187,18 @@ function renderCards(words) {
   if (words.length === 0) {
     cardsGrid.style.display = 'none';
     emptyState.style.display = 'block';
-    resultsCount.textContent = '0 resultados';
+    resultsCount.textContent = '0 resultats';
     return;
   }
 
   emptyState.style.display = 'none';
   cardsGrid.style.display = 'grid';
 
-  const isSearchEmpty = searchInput.value.trim() === '';
+  const isSearchEmpty = currentSearchQuery.trim() === '';
   if (isSearchEmpty) {
-    resultsCount.textContent = `Últimos resultados: ${words.length} palabras`;
+    resultsCount.textContent = `Últims resultats: mostrant ${words.length} de ${totalAvailable.toLocaleString('ca-ES')} paraules`;
   } else {
-    resultsCount.textContent = `Resultados encontrados: ${words.length}`;
+    resultsCount.textContent = `Resultats per "${currentSearchQuery}": ${totalAvailable.toLocaleString('ca-ES')} trobades`;
   }
 
   cardsGrid.innerHTML = words.map(w => `
@@ -171,7 +212,7 @@ function renderCards(words) {
           </div>
         </div>
         <div class="dict-card-actions">
-          <button class="card-play-btn" data-audio="${w.kanji}" title="Escuchar pronunciación" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}', this)">
+          <button class="card-play-btn" data-audio="${w.kanji}" title="Escoltar pronunciació" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}', this)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
         </div>
@@ -179,14 +220,17 @@ function renderCards(words) {
 
       <div class="dict-card-meaning">${w.spanish}</div>
 
-      <div class="dict-card-example">
-        <span class="example-jp-mini">${w.example.japanese}</span>
-        <span class="example-es-mini">${w.example.spanish}</span>
+      <div class="dict-card-definitions">
+        ${w.definitions && w.definitions.length > 1 ? `
+          <ul class="mini-defs-list">
+            ${w.definitions.slice(1, 3).map(d => `<li>${d}</li>`).join('')}
+          </ul>
+        ` : ''}
       </div>
 
       <div class="dict-card-footer">
         <span class="badge badge-category">${w.category_es}</span>
-        <span class="badge badge-jlpt">${w.jlpt}</span>
+        ${w.common ? `<span class="badge badge-common">Comú</span>` : `<span class="badge badge-general">General</span>`}
       </div>
     </article>
   `).join('');
@@ -195,45 +239,13 @@ function renderCards(words) {
   document.querySelectorAll('.dict-card').forEach(card => {
     card.addEventListener('click', () => {
       const id = card.getAttribute('data-id');
-      const word = allWords.find(w => w.id === id);
+      const word = allLoadedWords.find(w => w.id === id);
       if (word) {
-        addWordToRecent(word.id);
+        addWordToRecent(word);
         openModal(word);
       }
     });
   });
-}
-
-// Filter logic
-function applyFilters() {
-  const query = searchInput.value.trim().toLowerCase();
-  clearSearchBtn.style.display = query ? 'block' : 'none';
-
-  currentFiltered = allWords.filter(w => {
-    // Category match
-    const categoryMatch = activeCategory === 'all' || w.category === activeCategory;
-    
-    // JLPT match
-    const jlptMatch = activeJlpt === 'all' || w.jlpt === activeJlpt;
-
-    // Search query match
-    let searchMatch = true;
-    if (query) {
-      searchMatch = 
-        w.kanji.toLowerCase().includes(query) ||
-        w.hiragana.toLowerCase().includes(query) ||
-        w.romaji.toLowerCase().includes(query) ||
-        w.spanish.toLowerCase().includes(query) ||
-        w.definitions.some(d => d.toLowerCase().includes(query)) ||
-        w.example.japanese.includes(query) ||
-        w.example.spanish.toLowerCase().includes(query);
-    }
-
-    return categoryMatch && jlptMatch && searchMatch;
-  });
-
-  renderCards(currentFiltered);
-  renderRecentBar();
 }
 
 // Audio Player (Server TTS with Web Speech API fallback)
@@ -242,13 +254,11 @@ let currentAudio = null;
 function playJapaneseAudio(text, triggerBtn = null) {
   if (!text) return;
 
-  // Visual feedback on button
   if (triggerBtn) {
     triggerBtn.classList.add('is-playing');
     setTimeout(() => triggerBtn.classList.remove('is-playing'), 1500);
   }
 
-  // 1. Try server-side native audio stream (/api/tts)
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
@@ -259,15 +269,14 @@ function playJapaneseAudio(text, triggerBtn = null) {
   currentAudio = audio;
 
   audio.play().catch(err => {
-    console.warn('Fallo al reproducir audio del servidor, usando SpeechSynthesis como respaldo:', err);
-    // 2. Fallback to browser SpeechSynthesis
+    console.warn('Fallo al reproduir àudio del servidor, provant SpeechSynthesis:', err);
     playWebSpeechFallback(text);
   });
 }
 
 function playWebSpeechFallback(text) {
   if (!('speechSynthesis' in window)) {
-    console.warn('La síntesis de voz no es soportada en este navegador.');
+    console.warn('La síntesi de veu no és suportada.');
     return;
   }
 
@@ -283,6 +292,21 @@ function playWebSpeechFallback(text) {
   }
 
   window.speechSynthesis.speak(utterance);
+}
+
+// Modal View by ID
+async function openModalById(id) {
+  let word = allLoadedWords.find(w => w.id === id);
+  if (!word) {
+    try {
+      const res = await fetch(`/api/dictionary/${id}`);
+      if (res.ok) word = await res.json();
+    } catch (e) {}
+  }
+  if (word) {
+    addWordToRecent(word);
+    openModal(word);
+  }
 }
 
 // Modal View
@@ -308,14 +332,11 @@ function openModal(word) {
   modalHiragana.textContent = word.hiragana;
   modalRomaji.textContent = word.romaji;
   modalCategoryBadge.textContent = word.category_es;
-  modalJlptBadge.textContent = word.jlpt;
+  modalCommonBadge.textContent = word.common ? 'Comú (Frequència alta)' : 'Vocabulari General';
   modalSpanish.textContent = word.spanish;
 
-  modalDefinitions.innerHTML = word.definitions.map(d => `<li>${d}</li>`).join('');
-  modalExampleJp.textContent = word.example.japanese;
-  modalExampleRomaji.textContent = word.example.romaji;
-  modalExampleEs.textContent = word.example.spanish;
-  modalNotes.textContent = word.notes || 'Palabra de uso común en japonés cotidiano.';
+  modalDefinitions.innerHTML = (word.definitions || [word.spanish]).map(d => `<li>${d}</li>`).join('');
+  modalNotes.textContent = word.notes || 'Entrada oficial del diccionari JMdict (EDRDG).';
 
   detailModal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -327,13 +348,36 @@ function closeModal() {
   currentActiveWord = null;
 }
 
+// Credits Modal
+function openCredits() {
+  creditsModal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCredits() {
+  creditsModal.style.display = 'none';
+  document.body.style.overflow = 'auto';
+}
+
 // Event Listeners
 function setupEventListeners() {
-  // Search Input
-  searchInput.addEventListener('input', applyFilters);
+  // Search Input with Debounce (250ms)
+  searchInput.addEventListener('input', (e) => {
+    const val = e.target.value;
+    clearSearchBtn.style.display = val.trim() ? 'block' : 'none';
+
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      currentSearchQuery = val;
+      searchDictionary(true);
+    }, 250);
+  });
+
   clearSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
-    applyFilters();
+    currentSearchQuery = '';
+    clearSearchBtn.style.display = 'none';
+    searchDictionary(true);
     searchInput.focus();
   });
 
@@ -346,30 +390,52 @@ function setupEventListeners() {
     });
   }
 
+  // Load More Button
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', () => {
+      searchDictionary(false);
+    });
+  }
+
   // Category Pills
   filterPills.querySelectorAll('.pill').forEach(pill => {
     pill.addEventListener('click', () => {
       filterPills.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       activeCategory = pill.getAttribute('data-category');
-      applyFilters();
+      searchDictionary(true);
     });
   });
 
-  // JLPT Select
-  jlptSelect.addEventListener('change', (e) => {
-    activeJlpt = e.target.value;
-    applyFilters();
-  });
-
-  // Modal events
+  // Word Detail Modal events
   closeModalBtn.addEventListener('click', closeModal);
   detailModal.addEventListener('click', (e) => {
     if (e.target === detailModal) closeModal();
   });
+
+  // Credits Modal events
+  if (openCreditsBtn) openCreditsBtn.addEventListener('click', openCredits);
+  if (closeCreditsBtn) closeCreditsBtn.addEventListener('click', closeCredits);
+  if (creditsModal) {
+    creditsModal.addEventListener('click', (e) => {
+      if (e.target === creditsModal) closeCredits();
+    });
+  }
+
+  // Header link to credits
+  const attributionHeaderLink = document.getElementById('attributionHeaderLink');
+  if (attributionHeaderLink) {
+    attributionHeaderLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openCredits();
+    });
+  }
+
+  // Escape key closes modals
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && detailModal.style.display === 'flex') {
-      closeModal();
+    if (e.key === 'Escape') {
+      if (detailModal.style.display === 'flex') closeModal();
+      if (creditsModal && creditsModal.style.display === 'flex') closeCredits();
     }
   });
 
