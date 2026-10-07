@@ -61,13 +61,20 @@ async function loadStats() {
     const res = await fetch('/api/stats');
     const data = await res.json();
     if (data) {
-      document.getElementById('countAll').textContent = Number(data.total).toLocaleString('ca-ES');
-      document.getElementById('countWord').textContent = Number(data.wordsCount).toLocaleString('ca-ES');
-      document.getElementById('countNoun').textContent = Number(data.nounsCount).toLocaleString('ca-ES');
-      document.getElementById('countAdj').textContent = Number(data.adjectivesCount).toLocaleString('ca-ES');
+      const elAll = document.getElementById('countAll');
+      const elVerb = document.getElementById('countVerb');
+      const elNoun = document.getElementById('countNoun');
+      const elAdj = document.getElementById('countAdj');
+      const elExp = document.getElementById('countExp');
+
+      if (elAll && data.total) elAll.textContent = Number(data.total).toLocaleString('es-ES');
+      if (elVerb && data.verbsCount) elVerb.textContent = Number(data.verbsCount).toLocaleString('es-ES');
+      if (elNoun && data.nounsCount) elNoun.textContent = Number(data.nounsCount).toLocaleString('es-ES');
+      if (elAdj && data.adjectivesCount) elAdj.textContent = Number(data.adjectivesCount).toLocaleString('es-ES');
+      if (elExp && data.expressionsCount) elExp.textContent = Number(data.expressionsCount).toLocaleString('es-ES');
     }
   } catch (err) {
-    console.warn('No s\'han pogut carregar les estadístiques:', err);
+    console.warn('No se pudieron cargar las estadísticas:', err);
   }
 }
 
@@ -87,7 +94,7 @@ function saveRecentToStorage() {
   try {
     localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentWordIds));
   } catch (e) {
-    console.warn('Error guardant a localStorage:', e);
+    console.warn('Error guardando en localStorage:', e);
   }
 }
 
@@ -165,8 +172,8 @@ async function searchDictionary(reset = false) {
     updateLoadMoreButton();
     renderRecentBar();
   } catch (err) {
-    console.error('Error consultant el diccionari:', err);
-    cardsGrid.innerHTML = `<div class="empty-state"><p>Error carregant les dades. Si us plau recarrega la pàgina.</p></div>`;
+    console.error('Error consultando el diccionario:', err);
+    cardsGrid.innerHTML = `<div class="empty-state"><p>Error cargando los datos. Por favor recarga la página.</p></div>`;
   }
 }
 
@@ -175,7 +182,7 @@ function updateLoadMoreButton() {
   const remaining = totalAvailable - allLoadedWords.length;
   if (remaining > 0) {
     loadMoreWrap.style.display = 'block';
-    loadMoreRemain.textContent = remaining.toLocaleString('ca-ES');
+    loadMoreRemain.textContent = remaining.toLocaleString('es-ES');
   } else {
     loadMoreWrap.style.display = 'none';
   }
@@ -186,7 +193,7 @@ function renderCards(words) {
   if (words.length === 0) {
     cardsGrid.style.display = 'none';
     emptyState.style.display = 'block';
-    resultsCount.textContent = '0 resultats';
+    resultsCount.textContent = '0 resultados';
     return;
   }
 
@@ -195,9 +202,9 @@ function renderCards(words) {
 
   const isSearchEmpty = currentSearchQuery.trim() === '';
   if (isSearchEmpty) {
-    resultsCount.textContent = `Últims resultats: mostrant ${words.length} de ${totalAvailable.toLocaleString('ca-ES')} paraules`;
+    resultsCount.textContent = `Últimos resultados: mostrando ${words.length} de ${totalAvailable.toLocaleString('es-ES')} palabras`;
   } else {
-    resultsCount.textContent = `Resultats per "${currentSearchQuery}": ${totalAvailable.toLocaleString('ca-ES')} trobades`;
+    resultsCount.textContent = `Resultados para "${currentSearchQuery}": ${totalAvailable.toLocaleString('es-ES')} encontradas`;
   }
 
   cardsGrid.innerHTML = words.map(w => `
@@ -211,7 +218,7 @@ function renderCards(words) {
           </div>
         </div>
         <div class="dict-card-actions">
-          <button class="card-play-btn" data-audio="${w.kanji}" title="Escoltar pronunciació" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}', this)">
+          <button class="card-play-btn" data-audio="${w.kanji}" title="Escuchar pronunciación" onclick="event.stopPropagation(); playJapaneseAudio('${w.kanji}', this)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
         </div>
@@ -229,7 +236,7 @@ function renderCards(words) {
 
       <div class="dict-card-footer">
         <span class="badge badge-category">${w.category_es}</span>
-        ${w.common ? `<span class="badge badge-common">Comú</span>` : `<span class="badge badge-general">General</span>`}
+        ${w.common ? `<span class="badge badge-common">Común</span>` : `<span class="badge badge-general">General</span>`}
       </div>
     </article>
   `).join('');
@@ -268,14 +275,14 @@ function playJapaneseAudio(text, triggerBtn = null) {
   currentAudio = audio;
 
   audio.play().catch(err => {
-    console.warn('Fallo al reproduir àudio del servidor, provant SpeechSynthesis:', err);
+    console.warn('Fallo al reproducir audio del servidor, probando síntesis web:', err);
     playWebSpeechFallback(text);
   });
 }
 
 function playWebSpeechFallback(text) {
   if (!('speechSynthesis' in window)) {
-    console.warn('La síntesi de veu no és suportada.');
+    console.warn('La síntesis de voz no es soportada en este navegador.');
     return;
   }
 
@@ -331,7 +338,7 @@ function openModal(word) {
   modalHiragana.textContent = word.hiragana;
   modalRomaji.textContent = word.romaji;
   modalCategoryBadge.textContent = word.category_es;
-  modalCommonBadge.textContent = word.common ? 'Comú (Frequència alta)' : 'Vocabulari General';
+  modalCommonBadge.textContent = word.common ? 'Común (Frecuencia alta)' : 'Vocabulario general';
   modalSpanish.textContent = word.spanish;
 
   modalDefinitions.innerHTML = (word.definitions || [word.spanish]).map(d => `<li>${d}</li>`).join('');

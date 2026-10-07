@@ -96,20 +96,22 @@ function kanaToRomaji(kana) {
 }
 
 function mapPosToCategory(posList) {
-  if (!posList || posList.length === 0) return { category: 'word', category_es: 'Palabra' };
+  if (!posList || posList.length === 0) return { category: 'other', category_es: 'General' };
   const pos = posList.join(' ');
+  if (pos.includes('exp')) return { category: 'expression', category_es: 'Expresión' };
+  if (/v1|v5|vk|vs|vz|v-/.test(pos) || pos.startsWith('v ') || pos === 'v') {
+    if (pos.includes('v1')) return { category: 'verb', category_es: 'Verbo (Ichidan)' };
+    if (pos.includes('v5')) return { category: 'verb', category_es: 'Verbo (Godan)' };
+    if (pos.includes('vk')) return { category: 'verb', category_es: 'Verbo (Kuru)' };
+    if (pos.includes('vs')) return { category: 'verb', category_es: 'Verbo (Suru)' };
+    return { category: 'verb', category_es: 'Verbo' };
+  }
   if (pos.includes('adj-i')) return { category: 'adjective', category_es: 'Adjetivo (I)' };
   if (pos.includes('adj-na')) return { category: 'adjective', category_es: 'Adjetivo (Na)' };
   if (pos.includes('adj-')) return { category: 'adjective', category_es: 'Adjetivo' };
-  if (pos.includes('v1')) return { category: 'word', category_es: 'Verbo (Ichidan)' };
-  if (pos.includes('v5')) return { category: 'word', category_es: 'Verbo (Godan)' };
-  if (pos.includes('vk')) return { category: 'word', category_es: 'Verbo (Kuru)' };
-  if (pos.includes('vs')) return { category: 'word', category_es: 'Verbo (Suru)' };
-  if (pos.includes('v')) return { category: 'word', category_es: 'Verbo' };
   if (pos.includes('n')) return { category: 'noun', category_es: 'Sustantivo' };
-  if (pos.includes('adv')) return { category: 'word', category_es: 'Adverbio' };
-  if (pos.includes('exp')) return { category: 'word', category_es: 'Expresión' };
-  return { category: 'word', category_es: 'Palabra' };
+  if (pos.includes('adv')) return { category: 'other', category_es: 'Adverbio' };
+  return { category: 'other', category_es: 'General' };
 }
 
 async function buildDatabase() {

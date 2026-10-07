@@ -38,7 +38,7 @@ app.get('/api/attribution', (req, res) => {
     license: 'Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0)',
     licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
     totalEntries: 34309,
-    description: 'Aquest servei fa ús del fitxer de diccionari JMdict d\'acord amb la llicència d\'EDRDG i del projecte JMdict-Simplified creat per scriptin.'
+    description: 'Este servicio utiliza el archivo de diccionario JMdict de acuerdo con la licencia de EDRDG y del proyecto JMdict-Simplified creado por scriptin.'
   });
 });
 
@@ -204,18 +204,20 @@ app.get('/api/stats', (req, res) => {
     const stats = db.prepare(`
       SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN category = 'word' THEN 1 ELSE 0 END) as words,
+        SUM(CASE WHEN category = 'verb' THEN 1 ELSE 0 END) as verbs,
         SUM(CASE WHEN category = 'noun' THEN 1 ELSE 0 END) as nouns,
         SUM(CASE WHEN category = 'adjective' THEN 1 ELSE 0 END) as adjectives,
+        SUM(CASE WHEN category = 'expression' THEN 1 ELSE 0 END) as expressions,
         SUM(common) as commonTotal
       FROM words
     `).get();
 
     res.json({
       total: stats.total,
-      wordsCount: stats.words,
+      verbsCount: stats.verbs,
       nounsCount: stats.nouns,
       adjectivesCount: stats.adjectives,
+      expressionsCount: stats.expressions,
       commonCount: stats.commonTotal
     });
   } catch (err) {
