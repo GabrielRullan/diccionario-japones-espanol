@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
+const { deinflect } = require('./lib/deinflect');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -30,16 +31,28 @@ app.get('/health', (req, res) => {
 // Attribution / Legal metadata endpoint
 app.get('/api/attribution', (req, res) => {
   res.json({
-    database: 'JMdict-Simplified (Edición en Español)',
-    databaseUrl: 'https://github.com/scriptin/jmdict-simplified',
-    version: '3.6.2',
-    dictDate: '2026-10-05',
-    originalProject: 'JMdict / Electronic Dictionary Research and Development Group (EDRDG)',
-    originalUrl: 'http://www.edrdg.org/edrdg/licence.html',
-    license: 'Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0)',
-    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
-    totalEntries: 34309,
-    description: 'Este servicio utiliza el archivo de diccionario JMdict de acuerdo con la licencia de EDRDG y del proyecto JMdict-Simplified creado por scriptin.'
+    databases: [
+      {
+        name: 'JMdict-Simplified (Edición en Español)',
+        url: 'https://github.com/scriptin/jmdict-simplified',
+        version: '3.6.2',
+        license: 'Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0)',
+        entries: 34309
+      },
+      {
+        name: 'KANJIDIC2 (EDRDG / scriptin)',
+        url: 'http://www.edrdg.org/wiki/index.php/KANJIDIC_Project',
+        license: 'Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0)',
+        entries: 13108
+      },
+      {
+        name: 'Corpus Tatoeba (Japonés - Español)',
+        url: 'https://tatoeba.org',
+        license: 'Creative Commons Attribution 2.0 France (CC BY 2.0 FR)',
+        entries: 39748
+      }
+    ],
+    description: 'Este servicio utiliza datos lingüísticos abiertos de JMdict, KANJIDIC2 y Tatoeba bajo sus respectivas licencias Creative Commons.'
   });
 });
 
@@ -53,8 +66,18 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Helper: transform SQLite row to API object
-function formatWordRow(row) {
+// Helper: fetch example sentences for a word
+function getExamplesForWord(keyword, limit = 3) {
+  if (!db || !keyword) return [];
+  try {
+    return db.prepare('SELECT japanese, spanish FROM sentences WHERE japanese LIKE ? LIMIT ?').all(`%${keyword}%`, limit);
+  } catch (e) {
+    return [];
+  }
+}
+
+// Helper: transform SQLite row to API word object
+function formatWordRow(row, includeExamples = false) {
   let definitions = [];
   try {
     definitions = JSON.parse(row.definitions_json || '[]');
@@ -62,14 +85,7 @@ function formatWordRow(row) {
     definitions = [row.spanish];
   }
 
-  let example = null;
-  if (row.example_json) {
-    try {
-      example = JSON.parse(row.example_json);
-    } catch (e) {}
-  }
-
-  return {
+  const wordObj = {
     id: row.id,
     kanji: row.kanji,
     hiragana: row.hiragana,
@@ -78,13 +94,37 @@ function formatWordRow(row) {
     category: row.category,
     category_es: row.category_es,
     common: Boolean(row.common),
+    jlpt: row.jlpt ? `N${row.jlpt}` : null,
+    jlptNum: row.jlpt || null,
     definitions,
-    example,
     notes: row.notes || 'Entrada oficial de JMdict (EDRDG)'
+  };
+
+  if (includeExamples) {
+    wordObj.sentences = getExamplesForWord(row.kanji || row.hiragana, 3);
+  }
+
+  return wordObj;
+}
+
+// Helper: format Kanji row
+function formatKanjiRow(row) {
+  return {
+    literal: row.literal,
+    strokes: row.strokes,
+    grade: row.grade,
+    freq: row.freq,
+    jlpt: row.jlpt ? `N${row.jlpt}` : null,
+    radical: row.radical,
+    onReadings: JSON.parse(row.on_readings_json || '[]'),
+    kunReadings: JSON.parse(row.kun_readings_json || '[]'),
+    meaningsEs: JSON.parse(row.meanings_es_json || '[]'),
+    meaningsEn: JSON.parse(row.meanings_en_json || '[]'),
+    nanori: JSON.parse(row.nanori_json || '[]')
   };
 }
 
-// API: Search and filter dictionary
+// API: Search and filter dictionary (supports deinflection and JLPT)
 app.get('/api/dictionary', (req, res) => {
   if (!db) {
     return res.status(500).json({ error: 'Base de datos no disponible' });
@@ -92,13 +132,36 @@ app.get('/api/dictionary', (req, res) => {
 
   const q = (req.query.q || '').trim();
   const category = req.query.category || 'all';
+  const jlptFilter = req.query.jlpt ? parseInt(req.query.jlpt, 10) : null;
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
   try {
+    let deinflectionInfo = null;
+
     if (q) {
       const pattern = `%${q}%`;
       const prefixPattern = `${q}%`;
+
+      // 1. Comprobar si q es una forma conjugada (desinflexión)
+      const candidates = deinflect(q);
+      let matchedCandidate = null;
+
+      if (candidates.length > 0) {
+        for (const cand of candidates) {
+          const match = db.prepare('SELECT * FROM words WHERE kanji = ? OR hiragana = ? LIMIT 1').get(cand.term, cand.term);
+          if (match) {
+            matchedCandidate = { ...cand, word: match };
+            deinflectionInfo = {
+              original: q,
+              base: cand.term,
+              form: cand.description,
+              baseWord: formatWordRow(match)
+            };
+            break;
+          }
+        }
+      }
 
       let countSql = `
         SELECT COUNT(*) as total FROM words
@@ -110,9 +173,13 @@ app.get('/api/dictionary', (req, res) => {
         countSql += ` AND category = ?`;
         countParams.push(category);
       }
+      if (jlptFilter) {
+        countSql += ` AND jlpt = ?`;
+        countParams.push(jlptFilter);
+      }
 
       const countResult = db.prepare(countSql).get(...countParams);
-      const total = countResult ? countResult.total : 0;
+      let total = countResult ? countResult.total : 0;
 
       let selectSql = `
         SELECT * FROM words
@@ -123,6 +190,10 @@ app.get('/api/dictionary', (req, res) => {
       if (category !== 'all') {
         selectSql += ` AND category = ?`;
         selectParams.push(category);
+      }
+      if (jlptFilter) {
+        selectSql += ` AND jlpt = ?`;
+        selectParams.push(jlptFilter);
       }
 
       selectSql += `
@@ -142,32 +213,52 @@ app.get('/api/dictionary', (req, res) => {
       `;
       selectParams.push(q, q, q, q, prefixPattern, prefixPattern, limit, offset);
 
-      const rows = db.prepare(selectSql).all(...selectParams);
+      let rows = db.prepare(selectSql).all(...selectParams);
+
+      // Si la búsqueda directa tiene pocos resultados y tenemos una desinflexión confirmada,
+      // anteponemos la forma base al principio de la lista
+      if (matchedCandidate && matchedCandidate.word) {
+        const baseAlreadyInRows = rows.some(r => r.id === matchedCandidate.word.id);
+        if (!baseAlreadyInRows) {
+          rows.unshift(matchedCandidate.word);
+          total++;
+        }
+      }
+
       res.json({
         total,
         limit,
         offset,
-        entries: rows.map(formatWordRow)
+        deinflection: deinflectionInfo,
+        entries: rows.map(r => formatWordRow(r))
       });
     } else {
-      // Empty search: return common words prioritized
-      let countSql = `SELECT COUNT(*) as total FROM words`;
+      // Búsqueda vacía: mostrar resultados ordenados por relevancia común
+      let countSql = `SELECT COUNT(*) as total FROM words WHERE 1=1`;
       const countParams = [];
 
       if (category !== 'all') {
-        countSql += ` WHERE category = ?`;
+        countSql += ` AND category = ?`;
         countParams.push(category);
+      }
+      if (jlptFilter) {
+        countSql += ` AND jlpt = ?`;
+        countParams.push(jlptFilter);
       }
 
       const countResult = db.prepare(countSql).get(...countParams);
       const total = countResult ? countResult.total : 0;
 
-      let selectSql = `SELECT * FROM words`;
+      let selectSql = `SELECT * FROM words WHERE 1=1`;
       const selectParams = [];
 
       if (category !== 'all') {
-        selectSql += ` WHERE category = ?`;
+        selectSql += ` AND category = ?`;
         selectParams.push(category);
+      }
+      if (jlptFilter) {
+        selectSql += ` AND jlpt = ?`;
+        selectParams.push(jlptFilter);
       }
 
       selectSql += ` ORDER BY common DESC, id ASC LIMIT ? OFFSET ?`;
@@ -178,7 +269,8 @@ app.get('/api/dictionary', (req, res) => {
         total,
         limit,
         offset,
-        entries: rows.map(formatWordRow)
+        deinflection: null,
+        entries: rows.map(r => formatWordRow(r))
       });
     }
   } catch (err) {
@@ -187,7 +279,7 @@ app.get('/api/dictionary', (req, res) => {
   }
 });
 
-// API: Get entry by Word identifier (kanji / hiragana / ID)
+// API: Get entry by Word identifier (kanji / hiragana / ID) with sentences
 app.get('/api/dictionary/word/:identifier', (req, res) => {
   if (!db) {
     return res.status(500).json({ error: 'Base de datos no disponible' });
@@ -199,7 +291,7 @@ app.get('/api/dictionary/word/:identifier', (req, res) => {
     if (!row) {
       return res.status(404).json({ error: 'Palabra no encontrada' });
     }
-    res.json(formatWordRow(row));
+    res.json(formatWordRow(row, true));
   } catch (err) {
     console.error('Error buscando palabra por identificador:', err);
     res.status(500).json({ error: 'Error buscando palabra' });
@@ -217,10 +309,48 @@ app.get('/api/dictionary/:id', (req, res) => {
     if (!row) {
       return res.status(404).json({ error: 'Palabra no encontrada' });
     }
-    res.json(formatWordRow(row));
+    res.json(formatWordRow(row, true));
   } catch (err) {
     console.error('Error buscando palabra:', err);
     res.status(500).json({ error: 'Error buscando palabra' });
+  }
+});
+
+// API: Get Kanji details by character
+app.get('/api/kanji/:character', (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Base de datos no disponible' });
+  }
+
+  try {
+    const char = decodeURIComponent(req.params.character).trim();
+    const row = db.prepare('SELECT * FROM kanjis WHERE literal = ?').get(char);
+    if (!row) {
+      return res.status(404).json({ error: 'Kanji no encontrado' });
+    }
+    res.json(formatKanjiRow(row));
+  } catch (err) {
+    console.error('Error buscando kanji:', err);
+    res.status(500).json({ error: 'Error buscando kanji' });
+  }
+});
+
+// API: Get example sentences (Tatoeba)
+app.get('/api/sentences', (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Base de datos no disponible' });
+  }
+
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) {
+      return res.json({ total: 0, sentences: [] });
+    }
+    const rows = db.prepare('SELECT * FROM sentences WHERE japanese LIKE ? OR spanish LIKE ? LIMIT 25').all(`%${q}%`, `%${q}%`);
+    res.json({ total: rows.length, sentences: rows });
+  } catch (err) {
+    console.error('Error consultando oraciones:', err);
+    res.status(500).json({ error: 'Error consultando oraciones' });
   }
 });
 
@@ -238,9 +368,17 @@ app.get('/api/stats', (req, res) => {
         SUM(CASE WHEN category = 'noun' THEN 1 ELSE 0 END) as nouns,
         SUM(CASE WHEN category = 'adjective' THEN 1 ELSE 0 END) as adjectives,
         SUM(CASE WHEN category = 'expression' THEN 1 ELSE 0 END) as expressions,
+        SUM(CASE WHEN jlpt = 5 THEN 1 ELSE 0 END) as jlptN5,
+        SUM(CASE WHEN jlpt = 4 THEN 1 ELSE 0 END) as jlptN4,
+        SUM(CASE WHEN jlpt = 3 THEN 1 ELSE 0 END) as jlptN3,
+        SUM(CASE WHEN jlpt = 2 THEN 1 ELSE 0 END) as jlptN2,
+        SUM(CASE WHEN jlpt = 1 THEN 1 ELSE 0 END) as jlptN1,
         SUM(common) as commonTotal
       FROM words
     `).get();
+
+    const kanjiCount = db.prepare('SELECT COUNT(*) as total FROM kanjis').get().total;
+    const sentenceCount = db.prepare('SELECT COUNT(*) as total FROM sentences').get().total;
 
     res.json({
       total: stats.total,
@@ -248,6 +386,15 @@ app.get('/api/stats', (req, res) => {
       nounsCount: stats.nouns,
       adjectivesCount: stats.adjectives,
       expressionsCount: stats.expressions,
+      jlpt: {
+        n5: stats.jlptN5,
+        n4: stats.jlptN4,
+        n3: stats.jlptN3,
+        n2: stats.jlptN2,
+        n1: stats.jlptN1
+      },
+      kanjiCount,
+      sentenceCount,
       commonCount: stats.commonTotal
     });
   } catch (err) {
@@ -256,7 +403,7 @@ app.get('/api/stats', (req, res) => {
   }
 });
 
-// API: Text-to-Speech proxy (returns native Japanese audio MP3)
+// API: Text-to-Speech proxy
 app.get('/api/tts', async (req, res) => {
   const text = req.query.q;
   if (!text) {
@@ -285,7 +432,7 @@ app.get('/api/tts', async (req, res) => {
   }
 });
 
-// SEO & Deep-link: /word/:identifier (Jisho.org style URL)
+// Deep-link: /word/:identifier (Jisho.org style)
 app.get(['/word/:identifier', '/palabra/:identifier'], (req, res) => {
   try {
     const identifier = decodeURIComponent(req.params.identifier);
@@ -293,14 +440,14 @@ app.get(['/word/:identifier', '/palabra/:identifier'], (req, res) => {
     if (db) {
       const row = db.prepare('SELECT * FROM words WHERE kanji = ? OR hiragana = ? OR id = ? ORDER BY common DESC LIMIT 1').get(identifier, identifier, identifier);
       if (row) {
-        word = formatWordRow(row);
+        word = formatWordRow(row, true);
       }
     }
 
     let html = fs.readFileSync(indexPath, 'utf8');
     if (word) {
       const title = `${word.kanji} (${word.hiragana}) - Diccionario Japonés-Español | Murasaki no Jisho`;
-      const description = `Significado en español de ${word.kanji} (${word.hiragana} - ${word.romaji}): ${word.spanish}. Pronunciación, kanji y definiciones completas.`;
+      const description = `Significado en español de ${word.kanji} (${word.hiragana} - ${word.romaji}): ${word.spanish}. Pronunciación, kanji y ejemplos.`;
       const wordJson = JSON.stringify(word).replace(/</g, '\\u003c');
 
       html = html.replace('<title>Murasaki no Jisho | Diccionario Japonés-Español</title>', `<title>${escapeHtml(title)}</title>`);
@@ -320,7 +467,44 @@ app.get(['/word/:identifier', '/palabra/:identifier'], (req, res) => {
   }
 });
 
-// SEO & Deep-link: /search/:query
+// Deep-link: /kanji/:character (Jisho.org style)
+app.get('/kanji/:character', (req, res) => {
+  try {
+    const char = decodeURIComponent(req.params.character).trim();
+    let kanji = null;
+    if (db) {
+      const row = db.prepare('SELECT * FROM kanjis WHERE literal = ?').get(char);
+      if (row) {
+        kanji = formatKanjiRow(row);
+      }
+    }
+
+    let html = fs.readFileSync(indexPath, 'utf8');
+    if (kanji) {
+      const onStr = kanji.onReadings.join(', ');
+      const kunStr = kanji.kunReadings.join(', ');
+      const meanings = kanji.meaningsEs.length > 0 ? kanji.meaningsEs.join(', ') : kanji.meaningsEn.join(', ');
+      const title = `Kanji ${kanji.literal} - Trazos, lecturas y significado | Murasaki no Jisho`;
+      const desc = `Kanji ${kanji.literal} (${kanji.strokes} trazos). Lecturas On: ${onStr || '-'}. Kun: ${kunStr || '-'}. Significado: ${meanings}.`;
+      const kanjiJson = JSON.stringify(kanji).replace(/</g, '\\u003c');
+
+      html = html.replace('<title>Murasaki no Jisho | Diccionario Japonés-Español</title>', `<title>${escapeHtml(title)}</title>`);
+      html = html.replace(
+        '<meta name="description" content="Diccionario Japonés-Español interactivo con más de 34.300 entradas, kanji, hiragana, rōmaji y pronunciación nativa.">',
+        `<meta name="description" content="${escapeHtml(desc)}">
+  <meta property="og:title" content="${escapeHtml('Kanji ' + kanji.literal + ' — ' + meanings)}">
+  <meta property="og:description" content="${escapeHtml(desc)}">
+  <meta property="og:url" content="https://jisho.balears.tech/kanji/${encodeURIComponent(kanji.literal)}">
+  <script>window.__INITIAL_KANJI__ = ${kanjiJson};</script>`
+      );
+    }
+    res.send(html);
+  } catch (e) {
+    res.sendFile(indexPath);
+  }
+});
+
+// Deep-link: /search/:query
 app.get('/search/:query', (req, res) => {
   try {
     const query = decodeURIComponent(req.params.query);
@@ -351,6 +535,5 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Murasaki no Jisho ejecutándose en http://localhost:${PORT}`);
-  console.log(`Base de datos: 34.309 entradas de JMdict-Simplified`);
-  console.log(`Rutas compatibles con Jisho.org: /word/:kanji y /search/:query`);
+  console.log(`Bases integradas: JMdict (34.309), KANJIDIC2 (13.108), Tatoeba (39.748)`);
 });

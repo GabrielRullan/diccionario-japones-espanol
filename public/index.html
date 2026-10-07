@@ -23,9 +23,9 @@
         </div>
       </div>
       <div class="header-actions">
-        <a href="#attributionSection" id="attributionHeaderLink" class="badge badge-jmdict" title="Base de datos basada en JMdict (EDRDG)">
+        <a href="#attributionSection" id="attributionHeaderLink" class="badge badge-jmdict" title="Bases de datos abiertas: JMdict, KANJIDIC2 y Tatoeba">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
-          JMdict (34.300+ entradas)
+          JMdict & KANJIDIC2
         </a>
         <span class="badge badge-cloud" title="Desplegado en Google Cloud Run">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
@@ -47,7 +47,7 @@
           type="text" 
           id="searchInput" 
           class="search-input" 
-          placeholder="Buscar en kanji, hiragana, rōmaji o español (ej. 桜, sakura, flor de cerezo, comer, taberu)..." 
+          placeholder="Buscar en kanji, hiragana, rōmaji o español (ej. 桜, sakura, 食べた, comer, taberu)..." 
           autocomplete="off"
         >
         <button id="clearSearchBtn" class="clear-btn" style="display: none;" title="Limpiar búsqueda">✕</button>
@@ -65,7 +65,7 @@
         <button id="clearRecentBtn" class="recent-clear-btn" title="Borrar historial">Borrar</button>
       </div>
 
-      <!-- Category Filter Pills: Todas, Verbos, Sustantivos, Adjetivos, Expresiones -->
+      <!-- Category Filter Pills -->
       <div class="filter-pills" id="filterPills">
         <button class="pill active" data-category="all">
           Todas <span class="pill-count" id="countAll">34.309</span>
@@ -85,11 +85,27 @@
       </div>
     </section>
 
-    <!-- Results Status Bar -->
+    <!-- Results Status Bar with JLPT Selector -->
     <div class="results-bar">
-      <span id="resultsCount">Últimos resultados: 34.309 palabras disponibles</span>
-      <span class="results-source-tag">Fuente: <strong>JMdict-Simplified</strong> (CC BY-SA 3.0)</span>
+      <div class="results-left-group">
+        <span id="resultsCount">Últimos resultados: 34.309 palabras disponibles</span>
+        <span class="results-source-tag">Fuentes: <strong>JMdict</strong> • <strong>KANJIDIC2</strong> • <strong>Tatoeba</strong></span>
+      </div>
+      <div class="jlpt-filter">
+        <label for="jlptSelect">Nivel JLPT:</label>
+        <select id="jlptSelect">
+          <option value="all">Todos los niveles</option>
+          <option value="5">JLPT N5 (Básico)</option>
+          <option value="4">JLPT N4 (Principiante)</option>
+          <option value="3">JLPT N3 (Intermedio)</option>
+          <option value="2">JLPT N2 (Avanzado)</option>
+          <option value="1">JLPT N1 (Experto)</option>
+        </select>
+      </div>
     </div>
+
+    <!-- Deinflection Notice Banner -->
+    <div id="deinflectBanner" class="deinflect-banner" style="display: none;"></div>
 
     <!-- Dictionary Cards Grid -->
     <section class="cards-grid" id="cardsGrid">
@@ -119,7 +135,7 @@
 
       <div class="modal-header">
         <div class="modal-hero-kanji-wrap">
-          <div class="kanji-grid-box">
+          <div class="kanji-grid-box" id="modalKanjiBox" title="Clic para ver detalles de los kanjis">
             <span id="modalKanji" class="modal-kanji">桜</span>
           </div>
           <div class="modal-title-group">
@@ -129,6 +145,7 @@
             </div>
             <div class="modal-badges">
               <span id="modalCategoryBadge" class="badge badge-category">Sustantivo</span>
+              <span id="modalJlptBadge" class="badge badge-jlpt" style="display: none;">N5</span>
               <span id="modalCommonBadge" class="badge badge-common">Común</span>
             </div>
           </div>
@@ -140,6 +157,12 @@
       </div>
 
       <div class="modal-body">
+        <!-- Kanji Quick Links Bar -->
+        <div id="modalKanjiLinksRow" class="kanji-links-row" style="display: none;">
+          <span class="kanji-links-label">Kanjis individuales:</span>
+          <div id="modalKanjiLinksList" class="kanji-links-chips"></div>
+        </div>
+
         <!-- Definitions Section -->
         <div class="modal-section">
           <h4 class="section-title">Traducción y Significados (Español)</h4>
@@ -148,6 +171,51 @@
             <!-- Injected via JS -->
           </ul>
         </div>
+
+        <!-- Example Sentences Section (Tatoeba) -->
+        <div class="modal-section" id="modalSentencesSection" style="display: none;">
+          <h4 class="section-title">Frases de Ejemplo (Corpus Tatoeba)</h4>
+          <div class="sentences-list" id="modalSentencesList">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dedicated Kanji Detail Modal (KANJIDIC2) -->
+  <div id="kanjiModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card kanji-modal-card">
+      <button id="closeKanjiModalBtn" class="modal-close-btn" title="Cerrar">✕</button>
+
+      <div class="kanji-modal-header">
+        <div class="kanji-big-display" id="kmLiteral">桜</div>
+        <div class="kanji-meta-col">
+          <div class="kanji-meta-badges">
+            <span id="kmJlpt" class="badge badge-jlpt">JLPT N1</span>
+            <span id="kmGrade" class="badge badge-grade">Jōyō Gr. 5</span>
+            <span id="kmStrokes" class="badge badge-strokes">10 trazos</span>
+            <span id="kmRadical" class="badge badge-radical">Radical 75</span>
+          </div>
+          <div class="kanji-meanings-hero" id="kmMeanings">cerezo, flor de cerezo</div>
+        </div>
+      </div>
+
+      <div class="kanji-readings-grid">
+        <div class="reading-col">
+          <span class="reading-label">On'yomi (音読み):</span>
+          <div class="reading-chips" id="kmOnReadings">オウ, ヨウ</div>
+        </div>
+        <div class="reading-col">
+          <span class="reading-label">Kun'yomi (訓読み):</span>
+          <div class="reading-chips" id="kmKunReadings">さくら</div>
+        </div>
+      </div>
+
+      <div class="kanji-actions-row">
+        <button id="kmSearchWordsBtn" class="btn btn-outline">
+          🔍 Buscar palabras que usan este kanji
+        </button>
       </div>
     </div>
   </div>
@@ -160,15 +228,15 @@
         <span class="logo-seal">紫</span>
         <div>
           <h3>Reconocimiento de Datos y Licencia</h3>
-          <p class="credits-sub">JMdict & JMdict-Simplified</p>
+          <p class="credits-sub">JMdict • KANJIDIC2 • Tatoeba</p>
         </div>
       </div>
       <div class="credits-body">
-        <p>Este sitio web (<strong>Murasaki no Jisho</strong>) utiliza datos lingüísticos completos de japonés a español procedentes del proyecto libre <strong>JMdict</strong>.</p>
+        <p>Este sitio web (<strong>Murasaki no Jisho</strong>) utiliza datos lingüísticos abiertos procedentes de los proyectos libres de referencia en estudios de japonés:</p>
         
         <div class="credits-box">
-          <h4>Reconocimiento Oficial EDRDG:</h4>
-          <p>Este sitio ha utilizado el archivo de diccionario JMdict de conformidad con la declaración de licencia del <strong>Electronic Dictionary Research and Development Group</strong> (EDRDG).</p>
+          <h4>JMdict & KANJIDIC2 (EDRDG):</h4>
+          <p>This site has used the JMdict and KANJIDIC2 dictionary files in accordance with the licence statement of the <strong>Electronic Dictionary Research and Development Group</strong> (EDRDG).</p>
           <p>Autor original: <strong>Jim Breen</strong> y colaboradores de todo el mundo.</p>
           <p>Web oficial: <a href="http://www.edrdg.org/" target="_blank" rel="noopener noreferrer">http://www.edrdg.org/</a></p>
         </div>
@@ -180,7 +248,14 @@
           <p>Licencia: <strong>Creative Commons Reconocimiento-CompartirIgual 3.0 Unported (CC BY-SA 3.0)</strong>.</p>
         </div>
 
-        <p class="credits-license-note">Todos los derechos sobre las entradas originales pertenecen a sus respectivos autores de EDRDG y a la comunidad de colaboradores hispanohablantes de JMdict.</p>
+        <div class="credits-box">
+          <h4>Corpus Tatoeba (Oraciones de Ejemplo):</h4>
+          <p>Frases bilingües japonés-español de <strong>Tatoeba Project</strong>.</p>
+          <p>Web: <a href="https://tatoeba.org" target="_blank" rel="noopener noreferrer">https://tatoeba.org</a></p>
+          <p>Licencia: <strong>Creative Commons Reconocimiento 2.0 Francia (CC BY 2.0 FR)</strong>.</p>
+        </div>
+
+        <p class="credits-license-note">Todos los derechos sobre las entradas originales pertenecen a sus respectivos autores de EDRDG, scriptin y la comunidad de Tatoeba.</p>
       </div>
     </div>
   </div>
@@ -192,17 +267,16 @@
       <div class="footer-attribution-box">
         <p>
           Datos lingüísticos obtenidos de 
-          <a href="https://github.com/scriptin/jmdict-simplified" target="_blank" rel="noopener noreferrer"><strong>JMdict-Simplified</strong></a>, 
-          basado en el archivo <strong>JMdict</strong> del 
-          <a href="http://www.edrdg.org/" target="_blank" rel="noopener noreferrer"><strong>Electronic Dictionary Research and Development Group</strong> (EDRDG)</a>.
+          <a href="https://github.com/scriptin/jmdict-simplified" target="_blank" rel="noopener noreferrer"><strong>JMdict-Simplified</strong></a> y <strong>KANJIDIC2</strong> de 
+          <a href="http://www.edrdg.org/" target="_blank" rel="noopener noreferrer"><strong>EDRDG</strong></a>, y oraciones del 
+          <a href="https://tatoeba.org" target="_blank" rel="noopener noreferrer"><strong>Corpus Tatoeba</strong></a>.
         </p>
         <p class="footer-license-line">
-          Distribuido bajo licencia 
-          <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">Creative Commons Reconocimiento-CompartirIgual 3.0 (CC BY-SA 3.0)</a>.
+          Distribuido bajo licencias Creative Commons (CC BY-SA 3.0 / CC BY 2.0). 
           <button id="openCreditsBtn" class="link-btn">Ver créditos completos</button>
         </p>
       </div>
-      <p class="footer-sub">34.309 entradas en español • Diseñado con Google Stitch MCP • Servido en Google Cloud Run</p>
+      <p class="footer-sub">34.309 palabras • 13.108 kanjis • 39.748 oraciones • Servido en Google Cloud Run</p>
     </div>
   </footer>
 

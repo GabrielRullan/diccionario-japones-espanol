@@ -1,16 +1,22 @@
+// scripts/build-db.js
+// Compilador completo de base de datos SQLite para Murasaki no Jisho:
+// 1. JMdict-Simplified (34.309 entradas en español con niveles JLPT N5-N1)
+// 2. KANJIDIC2 (13.108 carácteres kanji con trazos, radicales, lecturas On/Kun y significados)
+// 3. Tatoeba (39.748 oraciones de ejemplo bilingües japonés <-> español)
+
 const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 
-// Kana to Romaji mapping
 const KANA_MAP = {
+  // Hiragana
   'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o',
   'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
   'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so',
   'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
   'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no',
   'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho',
-  'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo',
+  'ま': 'ma', 'み': 'mi', 'む': 'mu', 'me': 'me', 'も': 'mo',
   'や': 'ya', 'ゆ': 'yu', 'よ': 'yo',
   'ら': 'ra', 'り': 'ri', 'る': 'ru', 'れ': 're', 'ろ': 'ro',
   'わ': 'wa', 'を': 'o', 'ん': 'n',
@@ -65,7 +71,6 @@ function kanaToRomaji(kana) {
   let res = '';
   let i = 0;
   while (i < kana.length) {
-    // Sokuon っ / ッ
     if (kana[i] === 'っ' || kana[i] === 'ッ') {
       const nextPair = kana.substr(i + 1, 2);
       const nextChar = kana.substr(i + 1, 1);
@@ -115,23 +120,18 @@ function mapPosToCategory(posList) {
 }
 
 async function buildDatabase() {
-  console.log('==> Cargando jmdict-spa-3.6.2.json...');
-  const jsonPath = path.join(__dirname, '..', 'data', 'jmdict-spa-3.6.2.json');
   const dbPath = path.join(__dirname, '..', 'data', 'dictionary.db');
+  console.log('==> Iniciando compilación de base de datos SQLite:', dbPath);
 
   if (fs.existsSync(dbPath)) {
-    fs.unlinkSync(dbPath);
+    try { fs.unlinkSync(dbPath); } catch (e) {}
   }
-
-  const raw = fs.readFileSync(jsonPath, 'utf8');
-  const data = JSON.parse(raw);
-  const words = data.words || [];
-  console.log(`==> Total de palabras leídas de JMdict: ${words.length}`);
 
   const db = new DatabaseSync(dbPath);
 
-  // Schema creation
+  // 1. ESQUEMAS
   db.exec(`
+    -- Tabla de Palabras (JMdict + JLPT)
     CREATE TABLE words (
       id TEXT PRIMARY KEY,
       kanji TEXT,
@@ -141,6 +141,7 @@ async function buildDatabase() {
       category TEXT,
       category_es TEXT,
       common INTEGER,
+      jlpt INTEGER,
       definitions_json TEXT,
       example_json TEXT,
       notes TEXT
@@ -151,7 +152,39 @@ async function buildDatabase() {
     CREATE INDEX idx_romaji ON words(romaji);
     CREATE INDEX idx_category ON words(category);
     CREATE INDEX idx_common ON words(common);
+    CREATE INDEX idx_jlpt ON words(jlpt);
 
+    -- Tabla de Kanji Dedicada (KANJIDIC2)
+    CREATE TABLE kanjis (
+      literal TEXT PRIMARY KEY,
+      strokes INTEGER,
+      grade INTEGER,
+      freq INTEGER,
+      jlpt INTEGER,
+      radical INTEGER,
+      on_readings_json TEXT,
+      kun_readings_json TEXT,
+      meanings_es_json TEXT,
+      meanings_en_json TEXT,
+      nanori_json TEXT
+    );
+
+    CREATE INDEX idx_kanjis_strokes ON kanjis(strokes);
+    CREATE INDEX idx_kanjis_jlpt ON kanjis(jlpt);
+    CREATE INDEX idx_kanjis_grade ON kanjis(grade);
+
+    -- Tabla de Oraciones de Ejemplo (Tatoeba)
+    CREATE TABLE sentences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      jpn_id INTEGER,
+      spa_id INTEGER,
+      japanese TEXT,
+      spanish TEXT
+    );
+
+    CREATE INDEX idx_sentences_jpn ON sentences(japanese);
+
+    -- Índices de búsqueda FTS5
     CREATE VIRTUAL TABLE words_fts USING fts5(
       id UNINDEXED,
       kanji,
@@ -159,60 +192,75 @@ async function buildDatabase() {
       romaji,
       spanish
     );
+
+    CREATE VIRTUAL TABLE sentences_fts USING fts5(
+      id UNINDEXED,
+      japanese,
+      spanish
+    );
   `);
+
+  // 2. INSERTAR PALABRAS (JMdict + JLPT)
+  console.log('==> Cargando datos de JLPT...');
+  const jlptPath = path.join(__dirname, '..', 'data', 'jlpt_vocab.json');
+  let jlptData = {};
+  if (fs.existsSync(jlptPath)) {
+    jlptData = JSON.parse(fs.readFileSync(jlptPath, 'utf8'));
+  }
+
+  console.log('==> Cargando jmdict-spa-3.6.2.json...');
+  const jsonWordsPath = path.join(__dirname, '..', 'data', 'jmdict-spa-3.6.2.json');
+  const wordsData = JSON.parse(fs.readFileSync(jsonWordsPath, 'utf8'));
+  const wordsList = wordsData.words || [];
 
   const insertWord = db.prepare(`
     INSERT INTO words (
-      id, kanji, hiragana, romaji, spanish, category, category_es, common, definitions_json, example_json, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, kanji, hiragana, romaji, spanish, category, category_es, common, jlpt, definitions_json, example_json, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const insertFts = db.prepare(`
+  const insertWordFts = db.prepare(`
     INSERT INTO words_fts (id, kanji, hiragana, romaji, spanish) VALUES (?, ?, ?, ?, ?)
   `);
 
   db.exec('BEGIN TRANSACTION');
-
-  let inserted = 0;
-
-  for (const entry of words) {
+  let insertedWords = 0;
+  for (const entry of wordsList) {
     const id = entry.id;
-
-    // Kanji representation: use primary kanji if available, otherwise primary kana
     const primaryKanjiObj = entry.kanji && entry.kanji[0];
     const primaryKanaObj = entry.kana && entry.kana[0];
 
     const kanjiText = primaryKanjiObj ? primaryKanjiObj.text : (primaryKanaObj ? primaryKanaObj.text : '');
     const kanaText = primaryKanaObj ? primaryKanaObj.text : '';
     const romajiText = kanaToRomaji(kanaText);
-
     const isCommon = (primaryKanjiObj && primaryKanjiObj.common) || (primaryKanaObj && primaryKanaObj.common) ? 1 : 0;
 
-    // Extract senses and spanish glosses
     const allGlosses = [];
     let posList = [];
-
     if (entry.sense) {
       for (const s of entry.sense) {
         if (s.partOfSpeech) posList.push(...s.partOfSpeech);
         if (s.gloss) {
           for (const g of s.gloss) {
-            if (g.text && g.text.trim()) {
-              allGlosses.push(g.text.trim());
-            }
+            if (g.text && g.text.trim()) allGlosses.push(g.text.trim());
           }
         }
       }
     }
-
     if (allGlosses.length === 0) continue;
 
-    // Deduplicate glosses
     const uniqueGlosses = [...new Set(allGlosses)];
     const primarySpanish = uniqueGlosses[0];
     const { category, category_es } = mapPosToCategory(posList);
 
-    const definitionsJson = JSON.stringify(uniqueGlosses.slice(0, 5));
+    // Mapeo de JLPT si existe
+    let jlptLevel = null;
+    const jlptMatch = jlptData[kanjiText] || jlptData[kanaText];
+    if (jlptMatch && jlptMatch[0] && jlptMatch[0].level) {
+      jlptLevel = jlptMatch[0].level;
+    }
+
+    const definitionsJson = JSON.stringify(uniqueGlosses.slice(0, 6));
 
     insertWord.run(
       id,
@@ -223,25 +271,111 @@ async function buildDatabase() {
       category,
       category_es,
       isCommon,
+      jlptLevel,
       definitionsJson,
       null,
       'Entrada oficial de JMdict (EDRDG)'
     );
 
-    insertFts.run(
-      id,
-      kanjiText,
-      kanaText,
-      romajiText,
-      uniqueGlosses.join(' ')
-    );
+    insertWordFts.run(id, kanjiText, kanaText, romajiText, uniqueGlosses.join(' '));
+    insertedWords++;
+  }
+  db.exec('COMMIT');
+  console.log(`==> Palabras insertadas: ${insertedWords}`);
 
-    inserted++;
+  // 3. INSERTAR KANJIS (KANJIDIC2)
+  const kanjiJsonPath = path.join(__dirname, '..', 'data', 'kanjidic2-all-3.6.2.json');
+  if (fs.existsSync(kanjiJsonPath)) {
+    console.log('==> Cargando KANJIDIC2 (13.108 kanji)...');
+    const kanjiRaw = JSON.parse(fs.readFileSync(kanjiJsonPath, 'utf8'));
+    const characters = kanjiRaw.characters || [];
+
+    const insertKanji = db.prepare(`
+      INSERT INTO kanjis (
+        literal, strokes, grade, freq, jlpt, radical, on_readings_json, kun_readings_json, meanings_es_json, meanings_en_json, nanori_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    db.exec('BEGIN TRANSACTION');
+    let insertedKanji = 0;
+    for (const c of characters) {
+      const literal = c.literal;
+      const strokes = (c.misc && c.misc.strokeCounts && c.misc.strokeCounts[0]) || null;
+      const grade = (c.misc && c.misc.grade) || null;
+      const freq = (c.misc && c.misc.frequency) || null;
+      const jlpt = (c.misc && c.misc.jlptLevel) || null;
+      const radical = (c.radicals && c.radicals[0] && c.radicals[0].value) || null;
+
+      const onReadings = [];
+      const kunReadings = [];
+      const meaningsEs = [];
+      const meaningsEn = [];
+      const nanori = c.readingMeaning ? (c.readingMeaning.nanori || []) : [];
+
+      if (c.readingMeaning && c.readingMeaning.groups) {
+        for (const g of c.readingMeaning.groups) {
+          if (g.readings) {
+            for (const r of g.readings) {
+              if (r.type === 'ja_on') onReadings.push(r.value);
+              if (r.type === 'ja_kun') kunReadings.push(r.value);
+            }
+          }
+          if (g.meanings) {
+            for (const m of g.meanings) {
+              if (m.lang === 'es') meaningsEs.push(m.value);
+              if (m.lang === 'en') meaningsEn.push(m.value);
+            }
+          }
+        }
+      }
+
+      insertKanji.run(
+        literal,
+        strokes,
+        grade,
+        freq,
+        jlpt,
+        radical,
+        JSON.stringify(onReadings),
+        JSON.stringify(kunReadings),
+        JSON.stringify(meaningsEs),
+        JSON.stringify(meaningsEn.slice(0, 5)),
+        JSON.stringify(nanori)
+      );
+      insertedKanji++;
+    }
+    db.exec('COMMIT');
+    console.log(`==> Kanjis insertados: ${insertedKanji}`);
   }
 
-  db.exec('COMMIT');
-  console.log(`==> Base de datos creada con éxito en data/dictionary.db`);
-  console.log(`==> ${inserted} entradas indexadas en SQLite.`);
+  // 4. INSERTAR ORACIONES (Tatoeba JP-ES)
+  const tatoebaJsonPath = path.join(__dirname, '..', 'data', 'tatoeba_jpn_spa.json');
+  if (fs.existsSync(tatoebaJsonPath)) {
+    console.log('==> Cargando oraciones de Tatoeba (39.748 oraciones)...');
+    const sentences = JSON.parse(fs.readFileSync(tatoebaJsonPath, 'utf8'));
+
+    const insertSentence = db.prepare(`
+      INSERT INTO sentences (jpn_id, spa_id, japanese, spanish) VALUES (?, ?, ?, ?)
+    `);
+    const insertSentFts = db.prepare(`
+      INSERT INTO sentences_fts (id, japanese, spanish) VALUES (?, ?, ?)
+    `);
+
+    db.exec('BEGIN TRANSACTION');
+    let insertedSent = 0;
+    for (const s of sentences) {
+      const res = insertSentence.run(s.jid, s.sid, s.jpn, s.spa);
+      insertSentFts.run(Number(res.lastInsertRowid), s.jpn, s.spa);
+      insertedSent++;
+    }
+    db.exec('COMMIT');
+    console.log(`==> Oraciones insertadas: ${insertedSent}`);
+  }
+
+  console.log('==> ¡Base de datos completa creada con éxito en data/dictionary.db!');
 }
 
-buildDatabase().catch(console.error);
+buildDatabase().catch(err => {
+  console.error('Error fatal compilando la base de datos:', err);
+  process.exit(1);
+});

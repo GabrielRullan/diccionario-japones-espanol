@@ -986,3 +986,226 @@ body {
     align-items: flex-start;
   }
 }
+
+/* Deinflection Banner */
+.deinflect-banner {
+  background: #F3EBF7;
+  border: 1px solid var(--primary-border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  animation: fadeIn 0.25s ease;
+}
+
+.deinflect-icon {
+  font-size: 1.25rem;
+}
+
+/* JLPT Badges */
+.badge-jlpt {
+  background-color: #E8EAF6;
+  color: #283593;
+  font-weight: 700;
+  border: 1px solid #C5CAE9;
+}
+
+.badge-grade {
+  background-color: #E0F2F1;
+  color: #00695C;
+  font-weight: 600;
+}
+
+.badge-strokes {
+  background-color: #FFF3E0;
+  color: #E65100;
+  font-weight: 600;
+}
+
+.badge-radical {
+  background-color: #F3E5F5;
+  color: #6A1B9A;
+  font-weight: 600;
+}
+
+/* Sentences in Word Modal */
+.sentences-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.sentence-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  transition: border-color 0.15s ease;
+}
+
+.sentence-item:hover {
+  border-color: var(--primary);
+}
+
+.sentence-jp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.sentence-jp {
+  font-size: 1.05rem;
+  font-weight: 500;
+  font-family: var(--font-serif);
+  color: var(--text-main);
+}
+
+.sentence-es {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.sentence-audio-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.sentence-audio-btn:hover {
+  opacity: 1;
+}
+
+/* Kanji Quick Links Row in Word Modal */
+.kanji-links-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.kanji-links-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.kanji-links-chips {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.kanji-link-chip {
+  background: var(--surface);
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: var(--font-serif);
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.kanji-link-chip:hover {
+  background: var(--primary);
+  color: #FFFFFF;
+}
+
+/* Dedicated Kanji Modal */
+.kanji-modal-card {
+  max-width: 580px;
+}
+
+.kanji-modal-header {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.kanji-big-display {
+  width: 90px;
+  height: 90px;
+  background: var(--primary-light);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-family: var(--font-serif);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.kanji-meta-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kanji-meta-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.kanji-meanings-hero {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.kanji-readings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.reading-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.reading-chips {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.kanji-actions-row {
+  display: flex;
+  justify-content: flex-end;
+}
+

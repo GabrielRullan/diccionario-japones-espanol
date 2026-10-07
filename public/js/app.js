@@ -1,5 +1,5 @@
-// Murasaki no Jisho - Diccionario Japonés-Español (JMdict-Simplified)
-// Sistema de URLs permalink estilo Jisho.org: /word/:kanji y /search/:query
+// Murasaki no Jisho - Diccionario Japonés-Español (JMdict-Simplified, KANJIDIC2, Tatoeba)
+// Sistema interactivo estilo Jisho.org: /word/:kanji, /kanji/:char, /search/:query
 
 let allLoadedWords = [];
 let totalAvailable = 0;
@@ -7,6 +7,7 @@ let currentOffset = 0;
 const PAGE_SIZE = 48;
 
 let activeCategory = 'all';
+let activeJlpt = 'all';
 let currentSearchQuery = '';
 let searchDebounceTimer = null;
 let recentWordIds = [];
@@ -20,6 +21,8 @@ const cardsGrid = document.getElementById('cardsGrid');
 const emptyState = document.getElementById('emptyState');
 const resultsCount = document.getElementById('resultsCount');
 const filterPills = document.getElementById('filterPills');
+const jlptSelect = document.getElementById('jlptSelect');
+const deinflectBanner = document.getElementById('deinflectBanner');
 const loadMoreWrap = document.getElementById('loadMoreWrap');
 const loadMoreBtn = document.getElementById('loadMoreBtn');
 const loadMoreRemain = document.getElementById('loadMoreRemain');
@@ -36,10 +39,28 @@ const modalKanji = document.getElementById('modalKanji');
 const modalHiragana = document.getElementById('modalHiragana');
 const modalRomaji = document.getElementById('modalRomaji');
 const modalCategoryBadge = document.getElementById('modalCategoryBadge');
+const modalJlptBadge = document.getElementById('modalJlptBadge');
 const modalCommonBadge = document.getElementById('modalCommonBadge');
 const modalSpanish = document.getElementById('modalSpanish');
 const modalDefinitions = document.getElementById('modalDefinitions');
 const modalAudioBtn = document.getElementById('modalAudioBtn');
+const modalKanjiLinksRow = document.getElementById('modalKanjiLinksRow');
+const modalKanjiLinksList = document.getElementById('modalKanjiLinksList');
+const modalSentencesSection = document.getElementById('modalSentencesSection');
+const modalSentencesList = document.getElementById('modalSentencesList');
+
+// Kanji Detail Modal Elements
+const kanjiModal = document.getElementById('kanjiModal');
+const closeKanjiModalBtn = document.getElementById('closeKanjiModalBtn');
+const kmLiteral = document.getElementById('kmLiteral');
+const kmJlpt = document.getElementById('kmJlpt');
+const kmGrade = document.getElementById('kmGrade');
+const kmStrokes = document.getElementById('kmStrokes');
+const kmRadical = document.getElementById('kmRadical');
+const kmMeanings = document.getElementById('kmMeanings');
+const kmOnReadings = document.getElementById('kmOnReadings');
+const kmKunReadings = document.getElementById('kmKunReadings');
+const kmSearchWordsBtn = document.getElementById('kmSearchWordsBtn');
 
 // Credits Modal Elements
 const creditsModal = document.getElementById('creditsModal');
@@ -47,6 +68,7 @@ const openCreditsBtn = document.getElementById('openCreditsBtn');
 const closeCreditsBtn = document.getElementById('closeCreditsBtn');
 
 let currentActiveWord = null;
+let currentActiveKanji = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -60,7 +82,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function handleInitialRoute() {
   const path = window.location.pathname;
 
-  // 1. Direct word URL from server injection (__INITIAL_WORD__)
+  // 1. Direct Kanji route (__INITIAL_KANJI__ or /kanji/:char)
+  if (window.__INITIAL_KANJI__) {
+    const k = window.__INITIAL_KANJI__;
+    renderKanjiModalData(k);
+    kanjiModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    await searchDictionary(true, false);
+    return;
+  }
+
+  const kanjiMatch = path.match(/^\/kanji\/(.+)$/);
+  if (kanjiMatch) {
+    const char = decodeURIComponent(kanjiMatch[1]);
+    await searchDictionary(true, false);
+    await openKanjiModal(char, false);
+    return;
+  }
+
+  // 2. Direct Word URL from server injection (__INITIAL_WORD__)
   if (window.__INITIAL_WORD__) {
     const word = window.__INITIAL_WORD__;
     addWordToRecent(word);
@@ -69,7 +109,7 @@ async function handleInitialRoute() {
     return;
   }
 
-  // 2. Direct /word/:slug or /palabra/:slug in URL
+  // 3. Direct /word/:slug or /palabra/:slug
   const wordMatch = path.match(/^\/(?:word|palabra)\/(.+)$/);
   if (wordMatch) {
     const term = decodeURIComponent(wordMatch[1]);
@@ -78,7 +118,7 @@ async function handleInitialRoute() {
     return;
   }
 
-  // 3. Direct /search/:query or query parameter ?q=
+  // 4. Direct /search/:query or query parameter ?q=
   let initialQ = window.__INITIAL_SEARCH__ || '';
   if (!initialQ) {
     const searchMatch = path.match(/^\/search\/(.+)$/);
@@ -100,7 +140,7 @@ async function handleInitialRoute() {
     return;
   }
 
-  // 4. Default: load home list
+  // Default: load home list
   await searchDictionary(true, false);
 }
 
@@ -201,10 +241,11 @@ async function searchDictionary(reset = false, updateUrl = true) {
 
   const q = currentSearchQuery.trim();
   const category = activeCategory;
+  const jlpt = activeJlpt;
   const limit = PAGE_SIZE;
   const offset = currentOffset;
 
-  if (updateUrl && !currentActiveWord) {
+  if (updateUrl && !currentActiveWord && !currentActiveKanji) {
     if (q) {
       const searchUrl = `/search/${encodeURIComponent(q)}`;
       if (window.location.pathname !== searchUrl) {
@@ -219,7 +260,10 @@ async function searchDictionary(reset = false, updateUrl = true) {
     }
   }
 
-  const url = `/api/dictionary?q=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}&limit=${limit}&offset=${offset}`;
+  let url = `/api/dictionary?q=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}&limit=${limit}&offset=${offset}`;
+  if (jlpt && jlpt !== 'all') {
+    url += `&jlpt=${encodeURIComponent(jlpt)}`;
+  }
 
   try {
     const res = await fetch(url);
@@ -227,6 +271,17 @@ async function searchDictionary(reset = false, updateUrl = true) {
 
     totalAvailable = data.total || 0;
     const newEntries = data.entries || [];
+
+    // Handle Deinflection Banner
+    if (data.deinflection && q) {
+      deinflectBanner.innerHTML = `
+        <span class="deinflect-icon">💡</span>
+        <span>Forma conjugada detectada: <strong>${data.deinflection.original}</strong> es la forma <em>${data.deinflection.form}</em> de <strong>${data.deinflection.base}</strong></span>
+      `;
+      deinflectBanner.style.display = 'flex';
+    } else {
+      deinflectBanner.style.display = 'none';
+    }
 
     if (reset) {
       allLoadedWords = newEntries;
@@ -307,18 +362,17 @@ function renderCards(words) {
 
         <div class="dict-card-footer">
           <span class="badge badge-category">${w.category_es}</span>
+          ${w.jlpt ? `<span class="badge badge-jlpt">${w.jlpt}</span>` : ''}
           ${w.common ? `<span class="badge badge-common">Común</span>` : `<span class="badge badge-general">General</span>`}
         </div>
       </article>
     `;
   }).join('');
 
-  // Attach card click handlers for modal with pushState
+  // Attach card click handlers for modal
   document.querySelectorAll('.dict-card').forEach(card => {
     card.addEventListener('click', (e) => {
-      // If user clicked audio button, ignore
       if (e.target.closest('.card-play-btn')) return;
-
       const id = card.getAttribute('data-id');
       const word = allLoadedWords.find(w => w.id === id);
       if (word) {
@@ -329,7 +383,7 @@ function renderCards(words) {
   });
 }
 
-// Audio Player (Server TTS with Web Speech API fallback)
+// Audio Player
 let currentAudio = null;
 
 function playJapaneseAudio(text, triggerBtn = null) {
@@ -356,22 +410,14 @@ function playJapaneseAudio(text, triggerBtn = null) {
 }
 
 function playWebSpeechFallback(text) {
-  if (!('speechSynthesis' in window)) {
-    console.warn('La síntesis de voz no es soportada en este navegador.');
-    return;
-  }
-
+  if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ja-JP';
   utterance.rate = 0.85;
-
   const voices = window.speechSynthesis.getVoices();
   const jpVoice = voices.find(v => v.lang && (v.lang.startsWith('ja') || v.lang === 'ja-JP'));
-  if (jpVoice) {
-    utterance.voice = jpVoice;
-  }
-
+  if (jpVoice) utterance.voice = jpVoice;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -395,27 +441,12 @@ async function openWordByTerm(term, shouldPushState = true) {
   }
 }
 
-// Modal View by ID
-async function openModalById(id) {
-  let word = allLoadedWords.find(w => w.id === id);
-  if (!word) {
-    try {
-      const res = await fetch(`/api/dictionary/${id}`);
-      if (res.ok) word = await res.json();
-    } catch (e) {}
-  }
-  if (word) {
-    addWordToRecent(word);
-    openModal(word, true);
-  }
-}
-
 // Modal View with Jisho.org URL pushState
-function openModal(word, shouldPushState = true) {
+async function openModal(word, shouldPushState = true) {
   currentActiveWord = word;
   modalKanji.textContent = word.kanji;
 
-  const kanjiBox = document.querySelector('.kanji-grid-box');
+  const kanjiBox = document.getElementById('modalKanjiBox');
   if (kanjiBox) {
     const len = (word.kanji || '').length;
     kanjiBox.className = 'kanji-grid-box';
@@ -433,15 +464,70 @@ function openModal(word, shouldPushState = true) {
   modalHiragana.textContent = word.hiragana;
   modalRomaji.textContent = word.romaji;
   modalCategoryBadge.textContent = word.category_es;
+
+  if (word.jlpt) {
+    modalJlptBadge.textContent = word.jlpt;
+    modalJlptBadge.style.display = 'inline-block';
+  } else {
+    modalJlptBadge.style.display = 'none';
+  }
+
   modalCommonBadge.textContent = word.common ? 'Común (Frecuencia alta)' : 'Vocabulario general';
   modalSpanish.textContent = word.spanish;
-
   modalDefinitions.innerHTML = (word.definitions || [word.spanish]).map(d => `<li>${d}</li>`).join('');
+
+  // Extract individual kanjis for quick inspection chips
+  const kanjis = (word.kanji || '').match(/[\u4e00-\u9faf]/g) || [];
+  if (kanjis.length > 0) {
+    modalKanjiLinksList.innerHTML = [...new Set(kanjis)].map(k => `
+      <a href="/kanji/${encodeURIComponent(k)}" class="kanji-link-chip" data-char="${k}">${k}</a>
+    `).join('');
+    modalKanjiLinksRow.style.display = 'flex';
+
+    modalKanjiLinksList.querySelectorAll('.kanji-link-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+        e.preventDefault();
+        const char = chip.getAttribute('data-char');
+        openKanjiModal(char, true);
+      });
+    });
+  } else {
+    modalKanjiLinksRow.style.display = 'none';
+  }
+
+  // Handle Tatoeba example sentences
+  let sentences = word.sentences || [];
+  if (sentences.length === 0) {
+    try {
+      const sentRes = await fetch(`/api/sentences?q=${encodeURIComponent(word.kanji || word.hiragana)}`);
+      if (sentRes.ok) {
+        const sentData = await sentRes.json();
+        sentences = (sentData.sentences || []).slice(0, 3);
+      }
+    } catch (e) {}
+  }
+
+  if (sentences.length > 0) {
+    modalSentencesList.innerHTML = sentences.map(s => `
+      <div class="sentence-item">
+        <div class="sentence-jp-row">
+          <span class="sentence-jp">${s.japanese}</span>
+          <button class="sentence-audio-btn" title="Escuchar frase" onclick="playJapaneseAudio('${s.japanese.replace(/'/g, "\\'")}', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          </button>
+        </div>
+        <div class="sentence-es">${s.spanish}</div>
+      </div>
+    `).join('');
+    modalSentencesSection.style.display = 'block';
+  } else {
+    modalSentencesSection.style.display = 'none';
+  }
 
   detailModal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
-  // Update URL to /word/:kanji
   const wordSlug = word.kanji || word.id;
   const wordUrl = `/word/${encodeURIComponent(wordSlug)}`;
   const title = `${word.kanji} (${word.hiragana}) - Diccionario Japonés-Español | Murasaki no Jisho`;
@@ -457,7 +543,77 @@ function closeModal(shouldPushState = true) {
   document.body.style.overflow = 'auto';
   currentActiveWord = null;
 
-  // Restore URL to search or home
+  const q = currentSearchQuery.trim();
+  let returnUrl = '/';
+  let title = 'Murasaki no Jisho | Diccionario Japonés-Español';
+  if (q) {
+    returnUrl = `/search/${encodeURIComponent(q)}`;
+    title = `Buscar "${q}" - Diccionario Japonés-Español | Murasaki no Jisho`;
+  }
+
+  document.title = title;
+  if (shouldPushState && window.location.pathname !== returnUrl) {
+    history.pushState({ type: q ? 'search' : 'home' }, title, returnUrl);
+  }
+}
+
+// Dedicated Kanji Modal
+async function openKanjiModal(char, shouldPushState = true) {
+  try {
+    const res = await fetch(`/api/kanji/${encodeURIComponent(char)}`);
+    if (!res.ok) return;
+    const k = await res.json();
+    renderKanjiModalData(k);
+
+    kanjiModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    const kanjiUrl = `/kanji/${encodeURIComponent(char)}`;
+    const title = `Kanji ${k.literal} - Trazos, lecturas y significado | Murasaki no Jisho`;
+    document.title = title;
+
+    if (shouldPushState && window.location.pathname !== kanjiUrl) {
+      history.pushState({ type: 'kanji', char }, title, kanjiUrl);
+    }
+  } catch (e) {
+    console.error('Error abriendo modal de kanji:', e);
+  }
+}
+
+function renderKanjiModalData(k) {
+  currentActiveKanji = k;
+  kmLiteral.textContent = k.literal;
+  kmJlpt.textContent = k.jlpt ? `JLPT ${k.jlpt}` : 'JLPT: -';
+  kmGrade.textContent = k.grade ? `Grado ${k.grade}` : 'General';
+  kmStrokes.textContent = `${k.strokes || '-'} trazos`;
+  kmRadical.textContent = k.radical ? `Radical: #${k.radical}` : '';
+
+  const meanings = (k.meaningsEs && k.meaningsEs.length > 0) ? k.meaningsEs.join(', ') : (k.meaningsEn ? k.meaningsEn.join(', ') : '-');
+  kmMeanings.textContent = meanings;
+
+  kmOnReadings.textContent = (k.onReadings && k.onReadings.length > 0) ? k.onReadings.join(', ') : '-';
+  kmKunReadings.textContent = (k.kunReadings && k.kunReadings.length > 0) ? k.kunReadings.join(', ') : '-';
+
+  kmSearchWordsBtn.onclick = () => {
+    closeKanjiModal(false);
+    if (detailModal.style.display === 'flex') closeModal(false);
+    searchInput.value = k.literal;
+    currentSearchQuery = k.literal;
+    clearSearchBtn.style.display = 'block';
+    searchDictionary(true, true);
+  };
+}
+
+function closeKanjiModal(shouldPushState = true) {
+  kanjiModal.style.display = 'none';
+  currentActiveKanji = null;
+
+  if (detailModal.style.display === 'flex') {
+    // If word modal was behind it, keep it
+    return;
+  }
+
+  document.body.style.overflow = 'auto';
   const q = currentSearchQuery.trim();
   let returnUrl = '/';
   let title = 'Murasaki no Jisho | Diccionario Japonés-Español';
@@ -531,11 +687,27 @@ function setupEventListeners() {
     });
   });
 
+  // JLPT Level Selector
+  if (jlptSelect) {
+    jlptSelect.addEventListener('change', () => {
+      activeJlpt = jlptSelect.value;
+      searchDictionary(true, false);
+    });
+  }
+
   // Word Detail Modal events
   closeModalBtn.addEventListener('click', () => closeModal(true));
   detailModal.addEventListener('click', (e) => {
     if (e.target === detailModal) closeModal(true);
   });
+
+  // Kanji Modal events
+  if (closeKanjiModalBtn) closeKanjiModalBtn.addEventListener('click', () => closeKanjiModal(true));
+  if (kanjiModal) {
+    kanjiModal.addEventListener('click', (e) => {
+      if (e.target === kanjiModal) closeKanjiModal(true);
+    });
+  }
 
   // Credits Modal events
   if (openCreditsBtn) openCreditsBtn.addEventListener('click', openCredits);
@@ -555,34 +727,47 @@ function setupEventListeners() {
     });
   }
 
-  // Browser Navigation: Popstate (Back / Forward buttons)
+  // Browser Navigation: Popstate
   window.addEventListener('popstate', async (e) => {
     const path = window.location.pathname;
-    const wordMatch = path.match(/^\/(?:word|palabra)\/(.+)$/);
 
+    const kanjiMatch = path.match(/^\/kanji\/(.+)$/);
+    if (kanjiMatch) {
+      const char = decodeURIComponent(kanjiMatch[1]);
+      await openKanjiModal(char, false);
+      return;
+    }
+
+    if (kanjiModal && kanjiModal.style.display === 'flex') {
+      closeKanjiModal(false);
+    }
+
+    const wordMatch = path.match(/^\/(?:word|palabra)\/(.+)$/);
     if (wordMatch) {
       const term = decodeURIComponent(wordMatch[1]);
       await openWordByTerm(term, false);
-    } else {
-      if (detailModal.style.display === 'flex') {
-        closeModal(false);
+      return;
+    }
+
+    if (detailModal.style.display === 'flex') {
+      closeModal(false);
+    }
+
+    const searchMatch = path.match(/^\/search\/(.+)$/);
+    if (searchMatch) {
+      const q = decodeURIComponent(searchMatch[1]);
+      if (searchInput.value !== q) {
+        searchInput.value = q;
+        currentSearchQuery = q;
+        clearSearchBtn.style.display = 'block';
+        await searchDictionary(true, false);
       }
-      const searchMatch = path.match(/^\/search\/(.+)$/);
-      if (searchMatch) {
-        const q = decodeURIComponent(searchMatch[1]);
-        if (searchInput.value !== q) {
-          searchInput.value = q;
-          currentSearchQuery = q;
-          clearSearchBtn.style.display = 'block';
-          await searchDictionary(true, false);
-        }
-      } else {
-        if (searchInput.value !== '') {
-          searchInput.value = '';
-          currentSearchQuery = '';
-          clearSearchBtn.style.display = 'none';
-          await searchDictionary(true, false);
-        }
+    } else {
+      if (searchInput.value !== '') {
+        searchInput.value = '';
+        currentSearchQuery = '';
+        clearSearchBtn.style.display = 'none';
+        await searchDictionary(true, false);
       }
     }
   });
@@ -590,8 +775,9 @@ function setupEventListeners() {
   // Escape key closes modals
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (detailModal.style.display === 'flex') closeModal(true);
-      if (creditsModal && creditsModal.style.display === 'flex') closeCredits();
+      if (kanjiModal && kanjiModal.style.display === 'flex') closeKanjiModal(true);
+      else if (detailModal.style.display === 'flex') closeModal(true);
+      else if (creditsModal && creditsModal.style.display === 'flex') closeCredits();
     }
   });
 

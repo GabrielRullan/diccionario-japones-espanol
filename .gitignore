@@ -5,4 +5,4 @@ npm-debug.log*
 .DS_Store
 dist/
 data/*.zip
-data/jmdict-spa*.json
+data/*.json
