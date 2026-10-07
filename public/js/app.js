@@ -38,7 +38,6 @@ const modalCategoryBadge = document.getElementById('modalCategoryBadge');
 const modalCommonBadge = document.getElementById('modalCommonBadge');
 const modalSpanish = document.getElementById('modalSpanish');
 const modalDefinitions = document.getElementById('modalDefinitions');
-const modalNotes = document.getElementById('modalNotes');
 const modalAudioBtn = document.getElementById('modalAudioBtn');
 
 // Credits Modal Elements
@@ -336,7 +335,6 @@ function openModal(word) {
   modalSpanish.textContent = word.spanish;
 
   modalDefinitions.innerHTML = (word.definitions || [word.spanish]).map(d => `<li>${d}</li>`).join('');
-  modalNotes.textContent = word.notes || 'Entrada oficial del diccionari JMdict (EDRDG).';
 
   detailModal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
